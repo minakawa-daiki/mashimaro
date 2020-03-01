@@ -30,9 +30,6 @@ namespace Composition.WindowsRuntimeHelpers
 {
     public static class Direct3D11Helper
     {
-        static Guid IInspectable = new Guid("AF86E2E0-B12D-4c6a-9C5A-D7AA65101E90");
-        static Guid ID3D11Resource = new Guid("dc8e63f3-d12b-4952-b47b-5e45026a862d");
-        static Guid IDXGIAdapter3 = new Guid("645967A4-1392-4310-A798-8053CE3E93FD");
         static Guid ID3D11Device = new Guid("db6f6ddb-ac77-4e88-8253-819df9bbf140");
         static Guid ID3D11Texture2D = new Guid("6f15aaf2-d208-4e89-9ab4-489535d34f9c");
 
@@ -133,6 +130,22 @@ namespace Composition.WindowsRuntimeHelpers
             var d3dPointer = access.GetInterface(ID3D11Texture2D);
             var d3dSurface = new SharpDX.Direct3D11.Texture2D(d3dPointer);
             return d3dSurface;
+        }
+        
+        public static SharpDX.Direct3D11.Texture2D CreateSharpDXStagingTexture2D(SharpDX.Direct3D11.Device device, int width, int height)
+        {
+            var textureDescription = new SharpDX.Direct3D11.Texture2DDescription();
+            textureDescription.Width = width;
+            textureDescription.Height = height;
+            textureDescription.MipLevels = 1;
+            textureDescription.ArraySize = 1;
+            textureDescription.Format = SharpDX.DXGI.Format.B8G8R8A8_UNorm;
+            textureDescription.Usage = SharpDX.Direct3D11.ResourceUsage.Staging;
+            textureDescription.SampleDescription = new SharpDX.DXGI.SampleDescription(1, 0);
+            textureDescription.BindFlags = SharpDX.Direct3D11.BindFlags.None;
+            textureDescription.CpuAccessFlags = SharpDX.Direct3D11.CpuAccessFlags.Read;
+            textureDescription.OptionFlags = SharpDX.Direct3D11.ResourceOptionFlags.None;
+            return new SharpDX.Direct3D11.Texture2D(device, textureDescription);
         }
     }
 }
