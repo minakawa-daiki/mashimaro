@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Net.Sockets;
 using System.Threading;
 using Windows.Graphics.Capture;
 using Windows.Graphics.DirectX;
@@ -20,6 +21,10 @@ namespace CaptureTestConsole
             var captureItem = CaptureHelper.CreateItemForWindow(handle);
             captureItem.Closed += (sender, o) => { Console.WriteLine($"capture item closed"); };
 
+            var client = new TcpClient();
+            client.Connect("192.168.10.101", 9999);
+            using var networkStream = client.GetStream();
+
             using var device = Direct3D11Helper.CreateDevice();
             using var d3dDevice = Direct3D11Helper.CreateSharpDXDevice(device);
             var stage = Direct3D11Helper.CreateSharpDXStagingTexture2D(d3dDevice, captureItem.Size.Width, captureItem.Size.Height);
@@ -35,6 +40,7 @@ namespace CaptureTestConsole
             framePool.FrameArrived += (sender, o) =>
             {
                 var newSize = false;
+                Thread.Sleep(100);
                 using var frame = sender.TryGetNextFrame();
                 if (frame.ContentSize.Width != lastSize.Width || frame.ContentSize.Height != lastSize.Height)
                 {
@@ -51,18 +57,20 @@ namespace CaptureTestConsole
                 {
                     var width = frame.ContentSize.Width;
                     var height = frame.ContentSize.Height;
-                    using var rawFile = File.Create("capture.bgra");
+                    using var memoryStream = new MemoryStream();
+                    var size = width * 4 * height;
+                    memoryStream.Write(BitConverter.GetBytes((uint)size));
                     unsafe
                     {
                         for (var row = 0; row < height; row++)
                         {
                             var buf = new ReadOnlySpan<byte>(ds.PositionPointer.ToPointer(), width * 4 /* 4 bytes / pixel */);
-                            rawFile.Write(buf);
+                            memoryStream.Write(buf);
                             ds.Position += dataBox.RowPitch;
                         }
                     }
-
-                    Console.WriteLine($"write {width}x{height} to {rawFile.Name}");
+                    networkStream.Write(memoryStream.ToArray());
+                    // Console.WriteLine($"write frame (len: {size}) {width}x{height} to {client.Client.RemoteEndPoint}");
                 }
                 finally
                 {
