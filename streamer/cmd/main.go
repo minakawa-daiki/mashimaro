@@ -11,7 +11,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/notedit/gstreamer-go"
+	"github.com/castaneai/mashimaro/streamer"
 
 	"github.com/pion/webrtc/v2"
 	"github.com/pion/webrtc/v2/pkg/media"
@@ -71,17 +71,11 @@ func main() {
 	}
 
 	go func() {
-		pstr := "gst-launch-1.0 -v videotestsrc ! vp8enc ! avmux_ivf ! appsink name=sink"
-		log.Printf("pipeline: %s", pstr)
-		pipeline, err := gstreamer.New(pstr)
+		out, err := streamer.StartPollingRawOverTCP(1282, 747, 32)
 		if err != nil {
-			log.Fatalf("failed to create gst pipeline: %+v", err)
+			log.Printf("failed to start polling over TCP: %+v", err)
+			return
 		}
-
-		appsink := pipeline.FindElement("sink")
-		pipeline.Start()
-		out := appsink.Poll()
-
 		pr, pw := io.Pipe()
 		go func() {
 			defer pw.Close()
