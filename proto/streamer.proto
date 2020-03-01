@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+service Streamer {
+    rpc ConnectClient(ConnectClientRequest) returns (ConnectClientResponse) {};
+    rpc ConnectServer(ConnectServerRequest) returns (ConnectServerResponse) {};
+    rpc StartStreaming(StartStreamingRequest) returns (StartStreamingResponse) {};
+}
+
+message ConnectClientRequest {
+    // base64 encoded sdp offer
+    string sdp_offer = 1;
+}
+
+message ConnectClientResponse {
+    // base64 encoded sdp answer
+    string sdp_answer = 1;
+}
+
+message ConnectServerRequest {
+}
+
+message ConnectServerResponse {
+    uint32 udp_port = 1;
+}
+
+message StartStreamingRequest {
+    string caps = 1;
+}
+
+message StartStreamingResponse {
+}
