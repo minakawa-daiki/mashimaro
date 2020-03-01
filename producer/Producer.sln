@@ -1,0 +1,22 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConsoleTest", "ConsoleTest\ConsoleTest.csproj", "{94615AAB-F6F3-40D1-96C0-3C91B8B825EA}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Composition.WindowsRuntimeHelpers", "Composition.WindowsRuntimeHelpers\Composition.WindowsRuntimeHelpers.csproj", "{91CCB6E5-1D87-422B-B83E-F8BF0230FA85}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{94615AAB-F6F3-40D1-96C0-3C91B8B825EA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{94615AAB-F6F3-40D1-96C0-3C91B8B825EA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{94615AAB-F6F3-40D1-96C0-3C91B8B825EA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{94615AAB-F6F3-40D1-96C0-3C91B8B825EA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{91CCB6E5-1D87-422B-B83E-F8BF0230FA85}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{91CCB6E5-1D87-422B-B83E-F8BF0230FA85}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{91CCB6E5-1D87-422B-B83E-F8BF0230FA85}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{91CCB6E5-1D87-422B-B83E-F8BF0230FA85}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
