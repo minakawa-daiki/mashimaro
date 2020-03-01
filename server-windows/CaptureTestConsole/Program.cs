@@ -44,7 +44,6 @@ namespace CaptureTestConsole
 
                 using var tex = Direct3D11Helper.CreateSharpDXTexture2D(frame.Surface);
                 d3dDevice.ImmediateContext.CopyResource(tex, stage);
-                d3dDevice.ImmediateContext.CopySubresourceRegion(tex, 0, null, stage, 0);
                 
                 DataStream ds;
                 var dataBox = d3dDevice.ImmediateContext.MapSubresource(stage, 0, 0, MapMode.Read, MapFlags.None, out ds);
@@ -64,10 +63,6 @@ namespace CaptureTestConsole
                     }
 
                     Console.WriteLine($"write {width}x{height} to {rawFile.Name}");
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine(ex.ToString());
                 }
                 finally
                 {
