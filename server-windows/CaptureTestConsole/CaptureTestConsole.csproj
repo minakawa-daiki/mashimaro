@@ -18,7 +18,7 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\Composition.WindowsRuntimeHelpers\Composition.WindowsRuntimeHelpers.csproj" />
+      <ProjectReference Include="..\Helpers\Helpers.csproj" />
     </ItemGroup>
 
 </Project>

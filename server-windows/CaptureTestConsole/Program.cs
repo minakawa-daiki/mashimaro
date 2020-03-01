@@ -5,11 +5,11 @@ using System.Linq;
 using System.Threading;
 using Windows.Graphics.Capture;
 using Windows.Graphics.DirectX;
-using Composition.WindowsRuntimeHelpers;
+using Helpers;
 using SharpDX;
 using SharpDX.Direct3D11;
 
-namespace ConsoleTest
+namespace CaptureTestConsole
 {
     class Program
     {

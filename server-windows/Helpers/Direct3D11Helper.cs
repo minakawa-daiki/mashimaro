@@ -26,7 +26,7 @@ using System;
 using System.Runtime.InteropServices;
 using Windows.Graphics.DirectX.Direct3D11;
 
-namespace Composition.WindowsRuntimeHelpers
+namespace Helpers
 {
     public static class Direct3D11Helper
     {

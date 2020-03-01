@@ -27,7 +27,7 @@ using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.WindowsRuntime;
 using Windows.Graphics.Capture;
 
-namespace Composition.WindowsRuntimeHelpers
+namespace Helpers
 {
     public static class CaptureHelper
     {
