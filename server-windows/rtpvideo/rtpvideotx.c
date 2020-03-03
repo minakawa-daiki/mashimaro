@@ -308,10 +308,7 @@ int RtpVideoTx_addLine( RtpVideoTx_t v, const unsigned int lineNo, unsigned int 
         iov[1].buf = (CHAR*)buffer;
         iov[1].len = payloadSize;
         DWORD sentSize = 0;
-        if (WSASendMsg(self->socket, &msg, 0, &sentSize, NULL, NULL) == SOCKET_ERROR)
-            return -1;
-        if (sentSize != iov[0].len + iov[1].len)
-            return -1;
+        WSASendMsg(self->socket, &msg, 0, &sentSize, NULL, NULL);
 
         ++self->seqno;
         pixelOffset += (payloadSize/pgroupSize)*pgroupPixelCount;
