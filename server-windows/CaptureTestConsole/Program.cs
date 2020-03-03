@@ -46,6 +46,7 @@ namespace CaptureTestConsole
             var lastSize = captureItem.Size;
             uint timestamp = 0;
             const uint timestampStep = 90000 / 120;
+            var sw = new Stopwatch();
             framePool.FrameArrived += (sender, o) =>
             {
                 var newSize = false;
@@ -66,24 +67,11 @@ namespace CaptureTestConsole
                 {
                     var width = frame.ContentSize.Width;
                     var height = frame.ContentSize.Height;
-                    if (NativeMethods.RtpVideoTx_beginFrame(videoTx, timestamp) != 0)
-                    {
-                        throw new Exception("failed to videoTx beginFrame");
-                    }
-                    timestamp += timestampStep;
-                    for (var row = 0; row < height; row++)
-                    {
-                        var lineBytes = width * 4; /* 4bytes per pixel */
-                        var isLastLine = row == height - 1;
-                        var flags = isLastLine ? 0x01 : 0x00;
-                        if (NativeMethods.RtpVideoTx_addLine(videoTx, (uint) row, 0, (uint) lineBytes,
-                            ds.PositionPointer, (uint) flags) != 0)
-                        {
-                            throw new Exception("failed to videoTx addLine");
-                        }
-                        ds.Position += dataBox.RowPitch;
-                    }
-                    // Console.WriteLine($"write frame {width}x{height}");
+                    sw.Restart();
+                    NativeMethods.RtpVideoTx_addFrame(videoTx, width, height, ds.PositionPointer, dataBox.RowPitch);
+                    sw.Stop();
+                    Console.WriteLine($"elapsed {sw.ElapsedMilliseconds}ms");
+                    // Console.WriteLine($"write frame {width}x{height");
                 }
                 finally
                 {

@@ -45,6 +45,7 @@ DLLAPI int RtpVideoTx_setPayloadFormat( RtpVideoTx_t v, const uint8_t payloadFor
 DLLAPI int RtpVideoTx_setSSRC( RtpVideoTx_t v, const uint32_t ssrc );
 DLLAPI int RtpVideoTx_beginFrame( RtpVideoTx_t v, const uint32_t timestamp );
 DLLAPI int RtpVideoTx_getLineBuffer( RtpVideoTx_t v, const unsigned int length, uint8_t** out_buffer );
+DLLAPI void RtpVideoTx_addFrame(RtpVideoTx_t v, const unsigned int width, const unsigned int height, CHAR* buffer, const unsigned int rowPitch);
 DLLAPI int RtpVideoTx_addLine( RtpVideoTx_t v, const unsigned int lineNo, unsigned int pixelOffset, const uint32_t length, uint8_t* buffer, unsigned long flags );
 DLLAPI int RtpVideoTx_flush( RtpVideoTx_t v );
 

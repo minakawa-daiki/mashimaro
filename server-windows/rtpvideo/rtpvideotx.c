@@ -239,16 +239,26 @@ int RtpVideoTx_getLineBuffer( RtpVideoTx_t v, const unsigned int length, uint8_t
     return 0;
 }
 
+void RtpVideoTx_addFrame(RtpVideoTx_t v, const unsigned int width, const unsigned int height, CHAR* buffer, const unsigned int rowPitch)
+{
+    RtpVideoTx* self = (RtpVideoTx*)v;
+
+    for (int row = 0; row < height; row++)
+    {
+        const unsigned long flags = (row == height - 1) ? 0x01 : 0x00;
+        RtpVideoTx_addLine(v, row, 0, width * 4, buffer, flags);
+        buffer += rowPitch;
+    }
+}
+
 int RtpVideoTx_addLine( RtpVideoTx_t v, const unsigned int lineNo, unsigned int pixelOffset, const uint32_t length, uint8_t* buffer, unsigned long flags )
 {
     RtpVideoTx* self = (RtpVideoTx*)v;
-    if (unlikely(!self))
-        return -1;
 
     struct _WSAMSG msg;
     struct _WSABUF iov[2];
-    const unsigned int pgroupSize = _RtpVideoTxFormatPixelGroupMap[self->format].byteCount;
-    const unsigned int pgroupPixelCount = _RtpVideoTxFormatPixelGroupMap[self->format].pixelCount;
+    const unsigned int pgroupSize = 4;
+    const unsigned int pgroupPixelCount = 1;
 
 
     self->header[4] = (self->timestamp>>24)&0xff;

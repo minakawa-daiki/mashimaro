@@ -46,5 +46,8 @@ namespace CaptureTestConsole
         
         [DllImport("rtpvideo.dll")]
         internal static extern int RtpVideoTx_addLine(IntPtr v, uint lineNo, uint pixelOffset, uint length, IntPtr buffer, ulong flags);
+
+        [DllImport("rtpvideo.dll")]
+        internal static extern void RtpVideoTx_addFrame(IntPtr v, int width, int height, IntPtr buffer, int rowPitch);
     }
 }
