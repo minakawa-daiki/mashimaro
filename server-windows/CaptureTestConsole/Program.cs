@@ -14,6 +14,8 @@ namespace CaptureTestConsole
 {
     class Program
     {
+        static bool useUDP = false;
+
         static void Main(string[] args)
         {
             var process = Process.GetProcessesByName("Sakura").First();
@@ -21,16 +23,7 @@ namespace CaptureTestConsole
             var captureItem = CaptureHelper.CreateItemForWindow(handle);
             captureItem.Closed += (sender, o) => { Console.WriteLine($"capture item closed"); };
 
-            var videoTx = NativeMethods.RtpVideoTx_new(-1, VideoFormat.BGRA_8bit);
-            if (NativeMethods.RtpVideoTx_addDestination(videoTx, "192.168.10.101", 9999) != 0)
-            {
-                throw new Exception("failed to videoTx addDestination");
-            }
-
-            if (NativeMethods.RtpVideoTx_setSSRC(videoTx, 0) != 0)
-            {
-                throw new Exception("failed to videoTx setSSRC");
-            }
+            var frameWriter = new TcpFrameWriter("192.168.10.101", 9999);
 
             using var device = Direct3D11Helper.CreateDevice();
             using var d3dDevice = Direct3D11Helper.CreateSharpDXDevice(device);
@@ -45,7 +38,7 @@ namespace CaptureTestConsole
 
             var lastSize = captureItem.Size;
             uint timestamp = 0;
-            const uint timestampStep = 90000 / 120;
+            const uint timestampStep = 90000 / 60;
             var sw = new Stopwatch();
             framePool.FrameArrived += (sender, o) =>
             {
@@ -68,7 +61,7 @@ namespace CaptureTestConsole
                     var width = frame.ContentSize.Width;
                     var height = frame.ContentSize.Height;
                     sw.Restart();
-                    NativeMethods.RtpVideoTx_addFrame(videoTx, width, height, ds.PositionPointer, dataBox.RowPitch);
+                    frameWriter.WriteFrame(width, height, dataBox.RowPitch, ds.PositionPointer);
                     sw.Stop();
                     Console.WriteLine($"elapsed {sw.ElapsedMilliseconds}ms");
                     // Console.WriteLine($"write frame {width}x{height");
