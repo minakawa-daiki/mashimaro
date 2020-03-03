@@ -239,7 +239,7 @@ int RtpVideoTx_getLineBuffer( RtpVideoTx_t v, const unsigned int length, uint8_t
     return 0;
 }
 
-void RtpVideoTx_addFrame(RtpVideoTx_t v, const unsigned int width, const unsigned int height, CHAR* buffer, const unsigned int rowPitch)
+void RtpVideoTx_addFrame(RtpVideoTx_t v, const unsigned int width, const unsigned int height, char* buffer, const unsigned int rowPitch)
 {
     RtpVideoTx* self = (RtpVideoTx*)v;
 
@@ -257,8 +257,8 @@ int RtpVideoTx_addLine( RtpVideoTx_t v, const unsigned int lineNo, unsigned int 
 
     struct _WSAMSG msg;
     struct _WSABUF iov[2];
-    const unsigned int pgroupSize = 4;
-    const unsigned int pgroupPixelCount = 1;
+    const unsigned int pgroupSize = _RtpVideoTxFormatPixelGroupMap[self->format].byteCount;
+    const unsigned int pgroupPixelCount = _RtpVideoTxFormatPixelGroupMap[self->format].pixelCount;
 
 
     self->header[4] = (self->timestamp>>24)&0xff;
