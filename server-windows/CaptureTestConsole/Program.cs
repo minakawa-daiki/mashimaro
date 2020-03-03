@@ -21,9 +21,16 @@ namespace CaptureTestConsole
             var captureItem = CaptureHelper.CreateItemForWindow(handle);
             captureItem.Closed += (sender, o) => { Console.WriteLine($"capture item closed"); };
 
-            var client = new TcpClient();
-            client.Connect("192.168.10.101", 9999);
-            using var networkStream = client.GetStream();
+            var videoTx = NativeMethods.RtpVideoTx_new(-1, VideoFormat.BGRA_8bit);
+            if (NativeMethods.RtpVideoTx_addDestination(videoTx, "192.168.10.101", 9999) != 0)
+            {
+                throw new Exception("failed to videoTx addDestination");
+            }
+
+            if (NativeMethods.RtpVideoTx_setSSRC(videoTx, 0) != 0)
+            {
+                throw new Exception("failed to videoTx setSSRC");
+            }
 
             using var device = Direct3D11Helper.CreateDevice();
             using var d3dDevice = Direct3D11Helper.CreateSharpDXDevice(device);
@@ -37,10 +44,12 @@ namespace CaptureTestConsole
             using var session = framePool.CreateCaptureSession(captureItem);
 
             var lastSize = captureItem.Size;
+            uint timestamp = 0;
+            const uint timestampStep = 90000 / 120;
             framePool.FrameArrived += (sender, o) =>
             {
                 var newSize = false;
-                Thread.Sleep(100);
+                // Thread.Sleep(16);
                 using var frame = sender.TryGetNextFrame();
                 if (frame.ContentSize.Width != lastSize.Width || frame.ContentSize.Height != lastSize.Height)
                 {
@@ -57,20 +66,24 @@ namespace CaptureTestConsole
                 {
                     var width = frame.ContentSize.Width;
                     var height = frame.ContentSize.Height;
-                    using var memoryStream = new MemoryStream();
-                    var size = width * 4 * height;
-                    memoryStream.Write(BitConverter.GetBytes((uint)size));
-                    unsafe
+                    if (NativeMethods.RtpVideoTx_beginFrame(videoTx, timestamp) != 0)
                     {
-                        for (var row = 0; row < height; row++)
-                        {
-                            var buf = new ReadOnlySpan<byte>(ds.PositionPointer.ToPointer(), width * 4 /* 4 bytes / pixel */);
-                            memoryStream.Write(buf);
-                            ds.Position += dataBox.RowPitch;
-                        }
+                        throw new Exception("failed to videoTx beginFrame");
                     }
-                    networkStream.Write(memoryStream.ToArray());
-                    // Console.WriteLine($"write frame (len: {size}) {width}x{height} to {client.Client.RemoteEndPoint}");
+                    timestamp += timestampStep;
+                    for (var row = 0; row < height; row++)
+                    {
+                        var lineBytes = width * 4; /* 4bytes per pixel */
+                        var isLastLine = row == height - 1;
+                        var flags = isLastLine ? 0x01 : 0x00;
+                        if (NativeMethods.RtpVideoTx_addLine(videoTx, (uint) row, 0, (uint) lineBytes,
+                            ds.PositionPointer, (uint) flags) != 0)
+                        {
+                            throw new Exception("failed to videoTx addLine");
+                        }
+                        ds.Position += dataBox.RowPitch;
+                    }
+                    // Console.WriteLine($"write frame {width}x{height}");
                 }
                 finally
                 {

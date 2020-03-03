@@ -71,6 +71,12 @@ typedef struct _RtpVideoTx {
 
 RtpVideoTx_t RtpVideoTx_new(int sock, const RtpVideoTx_Format format)
 {
+    WSADATA wsaData;
+    if (WSAStartup(MAKEWORD(2, 0), &wsaData) != 0)
+    {
+        return -1;
+    }
+
     uint32_t seed = time(0);
     RtpVideoTx* self = calloc(1, sizeof(RtpVideoTx));
 
@@ -221,7 +227,7 @@ int RtpVideoTx_getLineBuffer( RtpVideoTx_t v, const unsigned int length, uint8_t
     }
     else if (self->bufferSize - self->bufferOffset < length)
     {
-        fprintf(stderr,"Resizing buffer to %d\n", length + self->bufferOffset);
+        fprintf(stderr,"Resizing buffer to %d\n", (int) length + self->bufferOffset);
         uint8_t* newBuffer = realloc(self->buffer, length + self->bufferOffset);
         if (newBuffer == NULL)
             return -1;
@@ -233,7 +239,7 @@ int RtpVideoTx_getLineBuffer( RtpVideoTx_t v, const unsigned int length, uint8_t
     return 0;
 }
 
-int RtpVideoTx_addLine( RtpVideoTx_t v, unsigned int lineNo, unsigned int pixelOffset, uint32_t length, uint8_t* buffer, unsigned long flags )
+int RtpVideoTx_addLine( RtpVideoTx_t v, const unsigned int lineNo, unsigned int pixelOffset, const uint32_t length, uint8_t* buffer, unsigned long flags )
 {
     RtpVideoTx* self = (RtpVideoTx*)v;
     if (unlikely(!self))
@@ -283,7 +289,7 @@ int RtpVideoTx_addLine( RtpVideoTx_t v, unsigned int lineNo, unsigned int pixelO
         bytesLeft -= payloadSize;
         if (bytesLeft <= 0)
         {
-            if (flags&0x01 == 0x01) // End of frame/field
+            if ((flags&0x01) == 0x01) // End of frame/field
             {
                 self->header[1] |= 0x80; // Set Marker bit
             }
@@ -302,7 +308,7 @@ int RtpVideoTx_addLine( RtpVideoTx_t v, unsigned int lineNo, unsigned int pixelO
         buffer += payloadSize;
         self->bufferOffset += payloadSize;
     }
-    if (flags&0x01 == 0x01) { // End of frame/field
+    if ((flags&0x01) == 0x01) { // End of frame/field
          self->header[1] &= 0x7f; // Reset Marker bit
          self->bufferOffset = 0;
     }
