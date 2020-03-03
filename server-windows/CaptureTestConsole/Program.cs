@@ -14,8 +14,6 @@ namespace CaptureTestConsole
 {
     class Program
     {
-        static bool useUDP = false;
-
         static void Main(string[] args)
         {
             var process = Process.GetProcessesByName("Sakura").First();
