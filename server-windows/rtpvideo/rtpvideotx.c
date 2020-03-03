@@ -242,11 +242,12 @@ int RtpVideoTx_getLineBuffer( RtpVideoTx_t v, const unsigned int length, uint8_t
 void RtpVideoTx_addFrame(RtpVideoTx_t v, const unsigned int width, const unsigned int height, char* buffer, const unsigned int rowPitch)
 {
     RtpVideoTx* self = (RtpVideoTx*)v;
+    const unsigned int pgroupSize = _RtpVideoTxFormatPixelGroupMap[self->format].byteCount;
 
     for (int row = 0; row < height; row++)
     {
         const unsigned long flags = (row == height - 1) ? 0x01 : 0x00;
-        RtpVideoTx_addLine(v, row, 0, width * 4, buffer, flags);
+        RtpVideoTx_addLine(v, row, 0, width * pgroupSize, buffer, flags);
         buffer += rowPitch;
     }
 }

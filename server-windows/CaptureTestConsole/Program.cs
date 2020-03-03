@@ -23,7 +23,8 @@ namespace CaptureTestConsole
             var captureItem = CaptureHelper.CreateItemForWindow(handle);
             captureItem.Closed += (sender, o) => { Console.WriteLine($"capture item closed"); };
 
-            var frameWriter = new TcpFrameWriter("192.168.10.101", 9999);
+            // var frameWriter = new TcpFrameWriter("192.168.10.101", 9999);
+            var frameWriter = new RtpFrameWriter("192.168.10.101", 9999);
 
             using var device = Direct3D11Helper.CreateDevice();
             using var d3dDevice = Direct3D11Helper.CreateSharpDXDevice(device);
@@ -37,13 +38,10 @@ namespace CaptureTestConsole
             using var session = framePool.CreateCaptureSession(captureItem);
 
             var lastSize = captureItem.Size;
-            uint timestamp = 0;
-            const uint timestampStep = 90000 / 60;
             var sw = new Stopwatch();
             framePool.FrameArrived += (sender, o) =>
             {
                 var newSize = false;
-                // Thread.Sleep(16);
                 using var frame = sender.TryGetNextFrame();
                 if (frame.ContentSize.Width != lastSize.Width || frame.ContentSize.Height != lastSize.Height)
                 {
@@ -63,8 +61,7 @@ namespace CaptureTestConsole
                     sw.Restart();
                     frameWriter.WriteFrame(width, height, dataBox.RowPitch, ds.PositionPointer);
                     sw.Stop();
-                    Console.WriteLine($"elapsed {sw.ElapsedMilliseconds}ms");
-                    // Console.WriteLine($"write frame {width}x{height");
+                    Console.WriteLine($"written frame {width}x{height} ({sw.ElapsedMilliseconds}ms)");
                 }
                 finally
                 {
