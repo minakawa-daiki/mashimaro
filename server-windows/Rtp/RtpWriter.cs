@@ -106,6 +106,10 @@ namespace Rtp
                     }
                     bytesLeft -= lineSegmentBytes;
                     lineSegments[i] = (bytes: lineSegmentBytes, fragmented: lineFragmented);
+                    if (lineNo > frameHeight)
+                    {
+                        break;
+                    }
                 }
                 Console.WriteLine("------ packet end");
                 if (bytesLeft <= 0)
