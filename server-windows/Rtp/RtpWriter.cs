@@ -109,7 +109,7 @@ namespace Rtp
                     }
                     bytesLeft -= lineSegmentBytes;
                     lineSegments[i] = (bytes: lineSegmentBytes, fragmented: lineFragmented);
-                    if (lineNo > frameHeight)
+                    if (lineNo > frameHeight - 1)
                     {
                         break;
                     }
