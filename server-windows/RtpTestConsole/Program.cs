@@ -11,12 +11,16 @@ namespace RtpTestConsole
         static void Main(string[] args)
         {
             var udpClient = new UdpClient("127.0.0.1", 9999);
-            var writer = new RtpWriter(udpClient, 320, 240, 320);
+            var width = 320;
+            var height = 240;
+            var bpp = 4;
+            var rowPitch = width * bpp;
+            var writer = new RtpWriter(udpClient, width, height, rowPitch);
 
             byte color = 0xff;
-            while (true)
+            for (var i = 0; i < 200000; i++)
             {
-                var frame = Enumerable.Repeat(color, 320 * 240 * 4).ToArray();
+                var frame = Enumerable.Repeat(color, width * height * bpp).ToArray();
                 unsafe
                 {
                     fixed (byte* p = frame)

@@ -13,7 +13,7 @@ namespace Rtp
         private const int Rfc4175HeaderSize = 2;
         private const int Rfc4175SegmentHeaderSize = 6;
             
-        private const short Mtu = 50;
+        private const ushort Mtu = 9000;
         private const int Bpp = 4; // RGBA: 4 bytes / pixel
         
         private readonly int frameWidth;
@@ -74,38 +74,40 @@ namespace Rtp
                 rtpHeader[3] = (byte) (seqNo & 0xff);
                 seqNo++;
 
-                // write RFC4175 header
-                var linePixelsLeft = frameWidth - offsetPixels;
-                var lineBytesLeft = linePixelsLeft * Bpp;
-                var lineFragmented = lineBytesLeft > maxPayloadBytes;
-                var lineSegmentPixels = lineFragmented ? maxPayloadBytes / Bpp : frameWidth;
-                var lineSegmentBytes = lineFragmented ? maxPayloadBytes : frameWidth * Bpp;
-
+                var lineSegments = new (int bytes, bool fragmented)[linesPerPacket];
                 for (var i = 0; i < linesPerPacket; i++)
                 {
+                    // write RFC4175 header
+                    var linePixelsLeft = frameWidth - offsetPixels;
+                    var lineBytesLeft = linePixelsLeft * Bpp;
+                    var lineFragmented = lineBytesLeft > maxPayloadBytes;
+                    var lineSegmentPixels = lineFragmented ? maxPayloadBytes / Bpp : linePixelsLeft;
+                    var lineSegmentBytes = lineFragmented ? maxPayloadBytes : linePixelsLeft * Bpp;
                     payloadHeader[2 + i * Rfc4175SegmentHeaderSize + 0] = (byte) (lineSegmentBytes >> 8 & 0xff);
                     payloadHeader[2 + i * Rfc4175SegmentHeaderSize + 1] = (byte) (lineSegmentBytes & 0xff);
                     payloadHeader[2 + i * Rfc4175SegmentHeaderSize + 2] = (byte) (lineNo >> 8 & 0xff);
                     payloadHeader[2 + i * Rfc4175SegmentHeaderSize + 3] = (byte) (lineNo & 0xff);
-                    payloadHeader[2 + i * Rfc4175SegmentHeaderSize + 4] = (byte) (offsetPixels >> 8 & 0xff);
+                    payloadHeader[2 + i * Rfc4175SegmentHeaderSize + 4] = (byte) (offsetPixels >> 8 & 0x7f);
                     payloadHeader[2 + i * Rfc4175SegmentHeaderSize + 5] = (byte) (offsetPixels & 0xff);
                     var continuation = i < linesPerPacket - 1;
                     if (continuation)
                     {
                         payloadHeader[i * Rfc4175SegmentHeaderSize + 4] |= 0x80; // set continuation bit
                     }
+                    Console.WriteLine($"lineNo: {lineNo}, segmentBytes: {lineSegmentBytes}, pixel range: {offsetPixels}-{offsetPixels+lineSegmentPixels} (+{lineSegmentPixels} pixels)");
+                    if (lineFragmented)
+                    {
+                        offsetPixels += lineSegmentPixels;
+                    }
+                    else
+                    {
+                        lineNo++;
+                        offsetPixels = 0;
+                    }
+                    bytesLeft -= lineSegmentBytes;
+                    lineSegments[i] = (bytes: lineSegmentBytes, fragmented: lineFragmented);
                 }
-                if (lineFragmented)
-                {
-                    offsetPixels += lineSegmentPixels;
-                }
-                else
-                {
-                    lineNo++;
-                }
-                
-                var payloadSize = lineSegmentBytes * linesPerPacket;
-                bytesLeft -= payloadSize;
+                Console.WriteLine("------ packet end");
                 if (bytesLeft <= 0)
                 {
                     rtpHeader[1] |= 0x80; // set marker bit
@@ -114,18 +116,18 @@ namespace Rtp
                 sendBuffer.Write(payloadHeader, 0, payloadHeader.Length);
                 
                 // write video frame payload
-                for (var i = 0; i < linesPerPacket; i++)
+                foreach (var (bytes, fragmented) in lineSegments)
                 {
                     unsafe
                     {
-                        var lineSegmentPayload = new ReadOnlySpan<byte>(buffer.ToPointer(), lineSegmentBytes);
+                        var lineSegmentPayload = new ReadOnlySpan<byte>(buffer.ToPointer(), bytes);
                         sendBuffer.Write(lineSegmentPayload);
                     }
-                    buffer += lineSegmentBytes;
-                    if (!lineFragmented)
+                    buffer += bytes;
+                    var hasEndOfLine = !fragmented;
+                    if (hasEndOfLine)
                     {
-                        // adjust rowPitch line
-                        // buffer += frameRowPitch - (pixelOffset * Bpp + lineSize);
+                        buffer += frameRowPitch - frameWidth * Bpp;
                     }
                 }
                 
