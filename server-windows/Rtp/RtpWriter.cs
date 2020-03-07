@@ -1,6 +1,9 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Net.Sockets;
+using System.Threading.Tasks;
 
 namespace Rtp
 {
@@ -30,13 +33,12 @@ namespace Rtp
 
         private readonly int linesPerPacket; 
 
-        public RtpWriter(UdpClient udpClient, int width, int height, int rowPitch)
+        public RtpWriter(UdpClient udpClient, int width, int height)
         {
             this.udpClient = udpClient;
             
             frameWidth = width;
             frameHeight = height;
-            frameRowPitch = rowPitch;
             
             rtpHeader = new byte[12];
             rtpHeader[0] = 0x80;
@@ -52,7 +54,7 @@ namespace Rtp
             payloadHeader[1] = (byte) (extSeqNo & 0xff);
         }
         
-        public void WriteFrame(IntPtr buffer)
+        public void WriteFrame(IntPtr buffer, int frameRowPitchBytes)
         {
             timestamp = (int)new DateTimeOffset(DateTime.UtcNow).ToUnixTimeMilliseconds();
             rtpHeader[4] = (byte) (timestamp >> 24 & 0xff);
@@ -65,6 +67,7 @@ namespace Rtp
             var bytesLeft = frameBytes;
             var lineNo = 0;
             var offsetPixels = 0;
+            var sendTasks = new List<Task<int>>();
             while (bytesLeft > 0)
             {
                 sendBuffer.Seek(0, SeekOrigin.Begin);
@@ -130,13 +133,13 @@ namespace Rtp
                     var hasEndOfLine = !fragmented;
                     if (hasEndOfLine)
                     {
-                        buffer += frameRowPitch - frameWidth * Bpp;
+                        buffer += frameRowPitchBytes - frameWidth * Bpp;
                     }
                 }
-                
-                udpClient.Send(sendBuffer.ToArray(), (int) sendBuffer.Length);
+                sendTasks.Add(udpClient.SendAsync(sendBuffer.ToArray(), (int) sendBuffer.Length));
             }
             rtpHeader[1] &= 0x7f; // reset marker bit
+            Task.WaitAll(sendTasks.ToArray());
         }
     }
 }
