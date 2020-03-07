@@ -21,7 +21,6 @@ namespace Rtp
         
         private readonly int frameWidth;
         private readonly int frameHeight;
-        private readonly int frameRowPitch;
         
         private byte[] rtpHeader;
         private short seqNo;
@@ -97,7 +96,7 @@ namespace Rtp
                     {
                         payloadHeader[2 + i * Rfc4175SegmentHeaderSize + 4] |= 0x80; // set continuation bit
                     }
-                    Console.WriteLine($"lineNo: {lineNo}, segmentBytes: {lineSegmentBytes}, pixel range: {offsetPixels}-{offsetPixels+lineSegmentPixels} (+{lineSegmentPixels} pixels)");
+                    // Console.WriteLine($"lineNo: {lineNo}, segmentBytes: {lineSegmentBytes}, pixel range: {offsetPixels}-{offsetPixels+lineSegmentPixels} (+{lineSegmentPixels} pixels)");
                     if (lineFragmented)
                     {
                         offsetPixels += lineSegmentPixels;
