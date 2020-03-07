@@ -29,8 +29,9 @@ namespace RtpTestConsole
                         {
                             writer.WriteFrame((IntPtr) p);
                         }
-                        catch
+                        catch (SocketException ex)
                         {
+                            Console.WriteLine($"socket exception: {ex.Message}");
                         }
                     }
                 }

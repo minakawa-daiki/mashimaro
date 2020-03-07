@@ -85,14 +85,14 @@ namespace Rtp
                     var lineSegmentBytes = lineFragmented ? maxPayloadBytes : linePixelsLeft * Bpp;
                     payloadHeader[2 + i * Rfc4175SegmentHeaderSize + 0] = (byte) (lineSegmentBytes >> 8 & 0xff);
                     payloadHeader[2 + i * Rfc4175SegmentHeaderSize + 1] = (byte) (lineSegmentBytes & 0xff);
-                    payloadHeader[2 + i * Rfc4175SegmentHeaderSize + 2] = (byte) (lineNo >> 8 & 0xff);
+                    payloadHeader[2 + i * Rfc4175SegmentHeaderSize + 2] = (byte) (lineNo >> 8 & 0x7f);
                     payloadHeader[2 + i * Rfc4175SegmentHeaderSize + 3] = (byte) (lineNo & 0xff);
                     payloadHeader[2 + i * Rfc4175SegmentHeaderSize + 4] = (byte) (offsetPixels >> 8 & 0x7f);
                     payloadHeader[2 + i * Rfc4175SegmentHeaderSize + 5] = (byte) (offsetPixels & 0xff);
                     var continuation = i < linesPerPacket - 1;
                     if (continuation)
                     {
-                        payloadHeader[i * Rfc4175SegmentHeaderSize + 4] |= 0x80; // set continuation bit
+                        payloadHeader[2 + i * Rfc4175SegmentHeaderSize + 4] |= 0x80; // set continuation bit
                     }
                     Console.WriteLine($"lineNo: {lineNo}, segmentBytes: {lineSegmentBytes}, pixel range: {offsetPixels}-{offsetPixels+lineSegmentPixels} (+{lineSegmentPixels} pixels)");
                     if (lineFragmented)
