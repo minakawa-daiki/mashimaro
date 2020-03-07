@@ -111,7 +111,6 @@ namespace Rtp
                         break;
                     }
                 }
-                Console.WriteLine("------ packet end");
                 if (bytesLeft <= 0)
                 {
                     rtpHeader[1] |= 0x80; // set marker bit
