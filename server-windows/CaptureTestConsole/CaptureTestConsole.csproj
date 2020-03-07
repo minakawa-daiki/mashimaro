@@ -21,6 +21,7 @@
 
     <ItemGroup>
       <ProjectReference Include="..\Helpers\Helpers.csproj" />
+      <ProjectReference Include="..\Rtp\Rtp.csproj" />
     </ItemGroup>
 
 </Project>

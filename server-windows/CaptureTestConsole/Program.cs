@@ -22,7 +22,9 @@ namespace CaptureTestConsole
             captureItem.Closed += (sender, o) => { Console.WriteLine($"capture item closed"); };
 
             // var frameWriter = new TcpFrameWriter("192.168.10.101", 9999);
-            var frameWriter = new RtpFrameWriter("192.168.10.101", 9999);
+            // var frameWriter = new VideoTxRtpFrameWriter("192.168.10.101", 9999);
+            var udpClient = new UdpClient("192.168.10.101", 9999);
+            var frameWriter = new RtpFrameWriter(udpClient, captureItem.Size.Width, captureItem.Size.Height);
 
             using var device = Direct3D11Helper.CreateDevice();
             using var d3dDevice = Direct3D11Helper.CreateSharpDXDevice(device);
@@ -56,9 +58,9 @@ namespace CaptureTestConsole
                 {
                     var width = frame.ContentSize.Width;
                     var height = frame.ContentSize.Height;
-                    sw.Restart();
+                    // sw.Restart();
                     frameWriter.WriteFrame(width, height, dataBox.RowPitch, ds.PositionPointer);
-                    sw.Stop();
+                    // sw.Stop();
                     Console.WriteLine($"written frame {width}x{height} ({sw.ElapsedMilliseconds}ms)");
                 }
                 finally
