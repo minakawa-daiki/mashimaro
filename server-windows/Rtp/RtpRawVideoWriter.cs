@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace Rtp
 {
-    public class RtpWriter
+    public class RtpRawVideoWriter
     {
         private readonly UdpClient udpClient;
         private readonly MemoryStream sendBuffer = new MemoryStream(Mtu);
@@ -32,7 +32,7 @@ namespace Rtp
 
         private readonly int linesPerPacket; 
 
-        public RtpWriter(UdpClient udpClient, int width, int height)
+        public RtpRawVideoWriter(UdpClient udpClient, int width, int height)
         {
             this.udpClient = udpClient;
             

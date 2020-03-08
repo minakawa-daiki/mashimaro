@@ -6,15 +6,15 @@ namespace CaptureTestConsole
 {
     public class RtpFrameWriter : IFrameWriter
     {
-        private readonly RtpWriter rtpWriter;
+        private readonly RtpRawVideoWriter _rtpRawVideoWriter;
         
         public RtpFrameWriter(UdpClient udpClient, int width, int height)
         {
-            rtpWriter = new RtpWriter(udpClient, width, height);
+            _rtpRawVideoWriter = new RtpRawVideoWriter(udpClient, width, height);
         }
         public void WriteFrame(int width, int height, int rowPitch, IntPtr buffer)
         {
-            rtpWriter.WriteFrame(buffer, rowPitch);
+            _rtpRawVideoWriter.WriteFrame(buffer, rowPitch);
         }
     }
 }

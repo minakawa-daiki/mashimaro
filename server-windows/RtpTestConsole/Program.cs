@@ -16,7 +16,7 @@ namespace RtpTestConsole
             var height = 747;
             var bpp = 4;
             var rowPitch = width * bpp;
-            var writer = new RtpWriter(udpClient, width, height);
+            var writer = new RtpRawVideoWriter(udpClient, width, height);
             
             var sw = new Stopwatch();
 

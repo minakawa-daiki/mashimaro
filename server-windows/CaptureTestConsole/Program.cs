@@ -33,7 +33,7 @@ namespace CaptureTestConsole
             using var framePool = Direct3D11CaptureFramePool.CreateFreeThreaded(
                 device,
                 DirectXPixelFormat.B8G8R8A8UIntNormalized,
-                2,
+                1,
                 captureItem.Size);
             using var session = framePool.CreateCaptureSession(captureItem);
 
@@ -41,6 +41,7 @@ namespace CaptureTestConsole
             var sw = new Stopwatch();
             framePool.FrameArrived += (sender, o) =>
             {
+                Thread.Sleep(16);
                 var newSize = false;
                 using var frame = sender.TryGetNextFrame();
                 if (frame.ContentSize.Width != lastSize.Width || frame.ContentSize.Height != lastSize.Height)
@@ -61,7 +62,7 @@ namespace CaptureTestConsole
                     // sw.Restart();
                     frameWriter.WriteFrame(width, height, dataBox.RowPitch, ds.PositionPointer);
                     // sw.Stop();
-                    Console.WriteLine($"written frame {width}x{height} ({sw.ElapsedMilliseconds}ms)");
+                    // Console.WriteLine($"written frame {width}x{height} ({sw.ElapsedMilliseconds}ms)");
                 }
                 finally
                 {
@@ -75,7 +76,7 @@ namespace CaptureTestConsole
                     framePool.Recreate(
                         device, 
                         DirectXPixelFormat.B8G8R8A8UIntNormalized,
-                        2,
+                        1,
                         lastSize);
                 }
             };
