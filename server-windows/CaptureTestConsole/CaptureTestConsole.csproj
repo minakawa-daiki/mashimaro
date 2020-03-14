@@ -16,11 +16,11 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <PackageReference Include="Microsoft.Windows.SDK.Contracts" Version="10.0.18362.2002-preview" />
+      <PackageReference Include="WinApi" Version="4.0.0" />
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\Helpers\Helpers.csproj" />
+      <ProjectReference Include="..\Capture\Capture.csproj" />
       <ProjectReference Include="..\Rtp\Rtp.csproj" />
     </ItemGroup>
 
