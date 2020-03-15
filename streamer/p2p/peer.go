@@ -18,8 +18,7 @@ type Peer struct {
 	videoTrack *webrtc.Track
 }
 
-func NewPeer(conn *webrtc.PeerConnection) (*Peer, error) {
-	payloadType := uint8(webrtc.DefaultPayloadTypeH264)
+func NewPeer(conn *webrtc.PeerConnection, payloadType uint8) (*Peer, error) {
 	videoTrack, err := conn.NewTrack(payloadType, rand.Uint32(), "video", "pion")
 	if err != nil {
 		return nil, err

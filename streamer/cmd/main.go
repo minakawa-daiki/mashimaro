@@ -32,12 +32,13 @@ func main() {
 			respondError(w, err)
 			return
 		}
-		pc, err := newPeerConnection(offer)
+		pc, media, err := newPeerConnection(offer)
 		if err != nil {
 			respondError(w, err)
 			return
 		}
-		peer, err := p2p.NewPeer(pc)
+		payloadType := getPayloadType(media)
+		peer, err := p2p.NewPeer(pc, payloadType)
 		if err != nil {
 			respondError(w, err)
 			return
@@ -96,6 +97,16 @@ func respondError(w http.ResponseWriter, err error) {
 	http.Error(w, err.Error(), http.StatusInternalServerError)
 }
 
+func getPayloadType(media *webrtc.MediaEngine) uint8 {
+	var payloadType uint8
+	for _, codec := range media.GetCodecsByKind(webrtc.RTPCodecTypeVideo) {
+		if codec.Name == webrtc.H264 {
+			payloadType = codec.PayloadType
+		}
+	}
+	return payloadType
+}
+
 func createAnswer(pc *webrtc.PeerConnection, offer *webrtc.SessionDescription) (*webrtc.SessionDescription, error) {
 	log.Printf("new peer connected")
 	if err := pc.SetRemoteDescription(*offer); err != nil {
@@ -112,10 +123,10 @@ func createAnswer(pc *webrtc.PeerConnection, offer *webrtc.SessionDescription) (
 	return &answer, nil
 }
 
-func newPeerConnection(offer *webrtc.SessionDescription) (*webrtc.PeerConnection, error) {
+func newPeerConnection(offer *webrtc.SessionDescription) (*webrtc.PeerConnection, *webrtc.MediaEngine, error) {
 	mediaEngine := webrtc.MediaEngine{}
 	if err := mediaEngine.PopulateFromSDP(*offer); err != nil {
-		return nil, fmt.Errorf("failed to populate from SDP: %+v", err)
+		return nil, nil, fmt.Errorf("failed to populate from SDP: %+v", err)
 	}
 
 	var payloadType uint8
@@ -126,17 +137,21 @@ func newPeerConnection(offer *webrtc.SessionDescription) (*webrtc.PeerConnection
 		}
 	}
 	if payloadType == 0 {
-		return nil, fmt.Errorf("Remote peer does not support H264")
+		return nil, nil, fmt.Errorf("Remote peer does not support H264")
 	}
 
 	api := webrtc.NewAPI(webrtc.WithMediaEngine(mediaEngine))
-	return api.NewPeerConnection(webrtc.Configuration{
+	pc, err := api.NewPeerConnection(webrtc.Configuration{
 		ICEServers: []webrtc.ICEServer{
 			{
 				URLs: []string{"stun:stun.l.google.com:19302"},
 			},
 		},
 	})
+	if err != nil {
+		return nil, nil, err
+	}
+	return pc, &mediaEngine, nil
 }
 
 func decodeOffer(in string) (*webrtc.SessionDescription, error) {
