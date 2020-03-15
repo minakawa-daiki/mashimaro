@@ -37,3 +37,14 @@ func TestGst(t *testing.T) {
 		appsrc.Push(make([]byte, 320*240*3))
 	}
 }
+
+func TestJPEGOnRTP(t *testing.T) {
+	out, err := StartStreamingJPEGRTP(9999)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for b := range out {
+		log.Printf("bytes! (len: %d)", len(b))
+	}
+}
