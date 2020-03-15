@@ -1,31 +1,121 @@
 package main
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/castaneai/mashimaro/streamer"
-	"github.com/pion/webrtc/v2/pkg/media"
+	"io/ioutil"
 	"log"
-	"math/rand"
+	"net/http"
 	"os"
+	"strconv"
+
+	"github.com/castaneai/mashimaro/streamer/p2p"
 
 	"github.com/pion/webrtc/v2"
 )
 
 func main() {
-	log.SetFlags(0)
-	if len(os.Args) < 2 {
-		log.Fatalf("Usage: ./streamer <base64_encoded_SDP>")
-	}
-	offer, err := readOffer(os.Args[1])
-	if err != nil {
-		log.Fatalf("failed to read offer: %+v", err)
-	}
+	mgr := p2p.NewManager()
+	ctx := context.Background()
+	go mgr.Start(ctx)
 
+	http.HandleFunc("/hello", func(w http.ResponseWriter, r *http.Request) {
+		rb, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			respondError(w, err)
+			return
+		}
+		offer, err := decodeOffer(string(rb))
+		if err != nil {
+			respondError(w, err)
+			return
+		}
+		pc, err := newPeerConnection(offer)
+		if err != nil {
+			respondError(w, err)
+			return
+		}
+		peer, err := p2p.NewPeer(pc)
+		if err != nil {
+			respondError(w, err)
+			return
+		}
+		mgr.AddPeer(peer)
+
+		answer, err := createAnswer(pc, offer)
+		if err != nil {
+			respondError(w, err)
+			return
+		}
+		resb, err := encodeAnswer(answer)
+		if err != nil {
+			respondError(w, err)
+			return
+		}
+		if _, err := w.Write([]byte(resb)); err != nil {
+			respondError(w, err)
+			return
+		}
+	})
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		f, err := os.Open("static/index.html")
+		if err != nil {
+			respondError(w, err)
+			return
+		}
+		defer f.Close()
+		b, err := ioutil.ReadAll(f)
+		if err != nil {
+			respondError(w, err)
+			return
+		}
+		w.Header().Set("content-type", "text/html")
+		if _, err := w.Write(b); err != nil {
+			respondError(w, err)
+			return
+		}
+	})
+
+	port := 8080
+	if p := os.Getenv("PORT"); p != "" {
+		pi, err := strconv.Atoi(p)
+		if err != nil {
+			log.Fatalf("failed to atoi port number: %+v", err)
+		}
+		port = pi
+	}
+	addr := fmt.Sprintf(":%d", port)
+	log.Printf("http server listening on %s...", addr)
+	log.Fatal(http.ListenAndServe(":8080", nil))
+}
+
+func respondError(w http.ResponseWriter, err error) {
+	log.Printf("error: %+v", err)
+	http.Error(w, err.Error(), http.StatusInternalServerError)
+}
+
+func createAnswer(pc *webrtc.PeerConnection, offer *webrtc.SessionDescription) (*webrtc.SessionDescription, error) {
+	log.Printf("new peer connected")
+	if err := pc.SetRemoteDescription(*offer); err != nil {
+		return nil, fmt.Errorf("failed to set remote desc: %+v", err)
+	}
+	answer, err := pc.CreateAnswer(nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create answer: %+v", err)
+	}
+	log.Printf("create answer")
+	if err = pc.SetLocalDescription(answer); err != nil {
+		return nil, fmt.Errorf("failed to local desc: %+v", err)
+	}
+	return &answer, nil
+}
+
+func newPeerConnection(offer *webrtc.SessionDescription) (*webrtc.PeerConnection, error) {
 	mediaEngine := webrtc.MediaEngine{}
 	if err := mediaEngine.PopulateFromSDP(*offer); err != nil {
-		log.Fatalf("failed to populate from SDP: %+v", err)
+		return nil, fmt.Errorf("failed to populate from SDP: %+v", err)
 	}
 
 	var payloadType uint8
@@ -36,74 +126,20 @@ func main() {
 		}
 	}
 	if payloadType == 0 {
-		panic("Remote peer does not support VP8")
+		return nil, fmt.Errorf("Remote peer does not support H264")
 	}
 
-	// Create a new RTCPeerConnection
 	api := webrtc.NewAPI(webrtc.WithMediaEngine(mediaEngine))
-	peerConnection, err := api.NewPeerConnection(webrtc.Configuration{
+	return api.NewPeerConnection(webrtc.Configuration{
 		ICEServers: []webrtc.ICEServer{
 			{
 				URLs: []string{"stun:stun.l.google.com:19302"},
 			},
 		},
 	})
-	if err != nil {
-		panic(err)
-	}
-
-	// Create a video track
-	videoTrack, err := peerConnection.NewTrack(payloadType, rand.Uint32(), "video", "pion")
-	if err != nil {
-		panic(err)
-	}
-	if _, err = peerConnection.AddTrack(videoTrack); err != nil {
-		panic(err)
-	}
-
-	go func() {
-		out, err := streamer.StartStreamingJPEGRTP(9999)
-		if err != nil {
-			log.Printf("failed to start polling over RTP: %+v", err)
-			return
-		}
-		for data := range out {
-			if err := videoTrack.WriteSample(media.Sample{
-				Data:    data,
-				Samples: 90000,
-			}); err != nil {
-				log.Printf("failed to write video sample: %+v", err)
-			}
-		}
-	}()
-
-	peerConnection.OnICEConnectionStateChange(func(connectionState webrtc.ICEConnectionState) {
-		fmt.Printf("Connection State has changed %s \n", connectionState.String())
-	})
-	if err = peerConnection.SetRemoteDescription(*offer); err != nil {
-		panic(err)
-	}
-
-	answer, err := peerConnection.CreateAnswer(nil)
-	if err != nil {
-		panic(err)
-	}
-
-	if err = peerConnection.SetLocalDescription(answer); err != nil {
-		panic(err)
-	}
-
-	ans, err := encodeAnswer(&answer)
-	if err != nil {
-		log.Fatalf("failed to encode answer: %+v", err)
-	}
-	fmt.Println(ans)
-
-	// Block forever
-	select {}
 }
 
-func readOffer(in string) (*webrtc.SessionDescription, error) {
+func decodeOffer(in string) (*webrtc.SessionDescription, error) {
 	b, err := base64.StdEncoding.DecodeString(in)
 	if err != nil {
 		return nil, err

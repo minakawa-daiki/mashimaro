@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>mashimaro</title>
+</head>
+<body>
+
+<h2>Videos</h2>
+<div id="remoteVideos"></div>
+
+<script>
+    const config = {
+        iceServers: [
+            {
+                urls: 'stun:stun.l.google.com:19302'
+            }
+        ],
+        iceTransportPolicy: "all",
+        iceCandidatePoolSize: 0,
+    };
+    let pc = new RTCPeerConnection(config);
+
+    pc.ontrack = function (event) {
+        console.log("on track: ", event);
+        var el = document.createElement(event.track.kind);
+        el.srcObject = event.streams[0];
+        el.autoplay = true;
+        el.controls = true;
+        document.getElementById('remoteVideos').appendChild(el);
+    };
+
+    pc.oniceconnectionstatechange = e => console.log("connection state: ", pc.iceConnectionState);
+    pc.onicecandidate = event => {
+        console.log("on ICE candidate...", event.candidate)
+    };
+
+    // HACK: to avoid gathering timeout with code 701...
+    // waiting for one second is usually sufficient.
+    // https://github.com/webrtc/samples/issues/1251
+    window.setTimeout(() => {
+        const offer = btoa(JSON.stringify(pc.localDescription));
+        console.log("offer created, start session....");
+        startSession(offer);
+    }, 1000);
+
+    pc.addTransceiver('audio', {'direction': 'recvonly'});
+    pc.addTransceiver('video', {'direction': 'recvonly'});
+    pc.createOffer().then(d => pc.setLocalDescription(d)).catch(console.error);
+
+    const startSession = async (offer) => {
+        const resp = await fetch('/hello', {body: offer, method: 'POST'});
+        const answer = await resp.text();
+        await pc.setRemoteDescription(new RTCSessionDescription(JSON.parse(atob(answer))))
+    };
+</script>
+</body>
+</html>
