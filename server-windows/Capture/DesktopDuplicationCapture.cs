@@ -13,15 +13,17 @@ namespace Capture
         
         private readonly Direct3D11.Device _device;
         private readonly DXGI.OutputDuplication _duplication;
+        private readonly int _acquireFrameTimeoutMilliseconds;
         private Direct3D11.Texture2D _texture;
         private Size _textureSize;
         
-        public DesktopDuplicationCapture()
+        public DesktopDuplicationCapture(int acquireFrameTimeoutMilliseconds)
         {
             var output = GetPrimaryMonitorOutput();
             var adapter = output.GetParent<DXGI.Adapter>();
             _device = new Direct3D11.Device(adapter);
             _duplication = output.DuplicateOutput(_device);
+            _acquireFrameTimeoutMilliseconds = acquireFrameTimeoutMilliseconds;
         }
 
         public void Capture(Rectangle rectangle)
@@ -45,7 +47,7 @@ namespace Capture
                 _textureSize = rectangle.Size;
             }
 
-            var result = _duplication.TryAcquireNextFrame(50, out var frameInfo, out var desktopResource);
+            var result = _duplication.TryAcquireNextFrame(_acquireFrameTimeoutMilliseconds, out var frameInfo, out var desktopResource);
             var isTimeout = result == DXGI.ResultCode.WaitTimeout;
             if (isTimeout) return;
 

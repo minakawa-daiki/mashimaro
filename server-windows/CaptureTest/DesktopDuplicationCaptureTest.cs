@@ -1,34 +1,43 @@
-using System;
 using System.Drawing;
-using System.Drawing.Imaging;
 using System.IO;
-using System.Runtime.InteropServices;
+using System.Linq;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using Capture;
-using WinApi.Gdi32;
+using Media.Rtsp.Server.MediaTypes;
 using Xunit;
-using Bitmap = System.Drawing.Bitmap;
 
 namespace CaptureTest
 {
     public class DesktopDuplicationCaptureTest
     {
         [Fact]
-        public void TestCapture()
+        public void TestCaptureJpeg()
         {
-            var capture = new DesktopDuplicationCapture();
-            byte[] frameBytes = null;
-            capture.FrameArrived += (sender, f) => { frameBytes = f.GetBytes(); };
+            const int quality = 80;
+            
+            var capture = new DesktopDuplicationCapture(500);
+            var encoder = new JpegBitmapEncoder();
+            encoder.QualityLevel = quality;
+            var captured = false;
+            capture.FrameArrived += (sender, f) =>
+            {
+                var bitmapSource = BitmapSource.Create(f.Size.Width, f.Size.Height, 96, 96, PixelFormats.Bgr32, null,
+                    f.Buffer, f.RowPitch * f.Size.Height, f.RowPitch);
+                encoder.Frames.Add(BitmapFrame.Create(bitmapSource));
+                captured = true;
+            };
+            
             var captureRegion = new Rectangle(0, 0, 500, 500);
-            while (frameBytes == null) capture.Capture(captureRegion);
-            Assert.NotNull(frameBytes);
-            using var frameBytesStream = new MemoryStream(frameBytes);
-            using var bitmap = new Bitmap(captureRegion.Width, captureRegion.Height, PixelFormat.Format32bppArgb);
-            var bitmapData = bitmap.LockBits(new Rectangle(0, 0, bitmap.Width, bitmap.Height), ImageLockMode.WriteOnly, bitmap.PixelFormat);
-            Marshal.Copy(frameBytes, 0, bitmapData.Scan0, frameBytes.Length);
-            bitmap.UnlockBits(bitmapData);
-            bitmap.Save("capture.bmp");
-            Assert.Equal(captureRegion.Width, bitmap.Width);
-            Assert.Equal(captureRegion.Height, bitmap.Height);
+            while (!captured) capture.Capture(captureRegion);
+
+            using var stream = new MemoryStream();
+            encoder.Save(stream);
+
+            var rtpf = new RFC2435Media.RFC2435Frame(stream, quality);
+            var packets = rtpf.ToArray();
+            Image j = rtpf;
+            j.Save("rtpsave.jpg");
         }
     }
 }
