@@ -4,7 +4,15 @@ services:
     build: ./docker/x11
     volumes:
       - x11socket:/tmp/.X11-unix/
+  streamer:
+    depends_on:
+      - x11
+    build: ./docker/streamer
+    volumes:
+      - x11socket:/tmp/.X11-unix/
   wine:
+    depends_on:
+      - x11
     build: ./docker/wine
     environment:
       DISPLAY: :0
