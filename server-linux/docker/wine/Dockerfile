@@ -18,5 +18,7 @@ RUN apt install -y locales \
 
 ENV WINEDLLOVERRIDES "mscoree=d;mshtml=d"
 
+ENV LANG ja_JP.UTF-8
+
 ENTRYPOINT ["wine"]
 CMD ["notepad"]
