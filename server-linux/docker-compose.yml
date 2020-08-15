@@ -1,0 +1,15 @@
+version: "3.6"
+services:
+  x11:
+    build: ./docker/x11
+    volumes:
+      - x11socket:/tmp/.X11-unix/
+  wine:
+    build: ./docker/wine
+    environment:
+      DISPLAY: :0
+    volumes:
+      - x11socket:/tmp/.X11-unix/
+
+volumes:
+  x11socket:
