@@ -1,23 +1,22 @@
 version: "3.6"
 services:
-  x11:
-    build: ./docker/x11
-    volumes:
-      - x11socket:/tmp/.X11-unix/
   streamer:
-    depends_on:
-      - x11
     build: ./docker/streamer
     volumes:
       - x11socket:/tmp/.X11-unix/
   wine:
-    depends_on:
-      - x11
+    command: wine /microkiri/microkiri.exe
     build: ./docker/wine
-    environment:
+    environment: 
       DISPLAY: :0
+      PULSE_SERVER: streamer:4713
+    security_opt:
+      - seccomp:unconfined # to avoid clock_getres() failure with EPERM on i386 pulseaudio
     volumes:
+      - ./microkiri:/microkiri
       - x11socket:/tmp/.X11-unix/
+    ports:
+      - 5900:5900
 
 volumes:
   x11socket:

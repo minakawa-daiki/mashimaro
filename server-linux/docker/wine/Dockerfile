@@ -1,7 +1,7 @@
 FROM ubuntu:20.04
 
 RUN apt update -y \
-	&& apt install -y wget software-properties-common gpg-agent
+	&& apt install -y wget software-properties-common gpg-agent xvfb x11vnc
 
 RUN dpkg --add-architecture i386 \
 	&& wget -qO - https://dl.winehq.org/wine-builds/winehq.key | apt-key add - \
@@ -20,5 +20,6 @@ ENV WINEDLLOVERRIDES "mscoree=d;mshtml=d"
 
 ENV LANG ja_JP.UTF-8
 
-ENTRYPOINT ["wine"]
-CMD ["notepad"]
+COPY entrypoint.sh /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]
