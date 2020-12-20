@@ -28,7 +28,10 @@ func (m *Manager) Start(ctx context.Context) {
 			return
 		case peer := <-m.peerch:
 			m.idcnt++
+			m.mu.Lock()
 			m.peers[m.idcnt] = peer
+			m.mu.Unlock()
+
 			go func(id int) {
 				defer func() {
 					m.mu.Lock()
