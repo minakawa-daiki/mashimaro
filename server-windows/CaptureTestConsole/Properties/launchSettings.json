@@ -1,8 +1,0 @@
-{
-  "profiles": {
-    "CaptureTestConsole": {
-      "commandName": "Project",
-      "nativeDebugging": true
-    }
-  }
-}

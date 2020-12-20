@@ -1,24 +1,38 @@
 # mashimaro
 
-## Requirements
+A simple PoC of cloud gaming.
 
-- gstreamer
+## Usage
 
-## Quickstart
+```sh
+docker-compose up -d
+open http://localhost:8080
+```
 
-- Open https://jsfiddle.net/z7ms3u5r/
-- Wait for generating "Browser base64 Session Description" and copy it
-- `go run streamer/main.go <Browser base64 Session Description>`
-- streamer prints base64 string, copy it
-- Paste one to "Golang base64 Session Description"
-- Press "Start Session"
+## Debugging with VNC
 
-![](demo.png)
+```sh
+open vnc://localhost:5900
+```
 
-## Author
+## Getting video and audios via gstreamer
 
-[castaneai](https://castaneai.dev)
+```sh
+# setup containers
+docker-compose up -d
 
-## License
+## stream video
 
-MIT
+# on streamer container
+$ gst-launch-1.0 -v ximagesrc display-name=:0 ! videoconvert ! rtpvrawpay ! udpsink host=host.docker.internal port=9999
+
+# on host
+$ gst-launch-1.0 -v udpsrc port=9999 caps="application/x-rtp, media=(string)video, sampling=(string)RGB, width=(string)800, height=(string)600" ! rtpvrawdepay ! autovideosink
+
+
+## stream audio
+## Make sure that pulseaudio daemon set up on your host and is listening on TCP :4713
+
+# on streamer container
+$ gst-launch-1.0 -v pulsesrc server=localhost:4713 ! queue ! pulsesink server=host.docker.internal:4713
+```

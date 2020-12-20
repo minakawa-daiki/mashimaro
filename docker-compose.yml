@@ -1,0 +1,25 @@
+version: "3.6"
+services:
+  streamer:
+    build: .
+    environment:
+      PORT: 8080
+    ports:
+    - 8080:8080
+    volumes:
+      - x11socket:/tmp/.X11-unix/
+  game:
+    command: wine /microkiri/microkiri.exe
+    build: ./docker/wine
+    environment: 
+      PULSE_SERVER: streamer:4713
+    security_opt:
+      - seccomp:unconfined # to avoid clock_getres() failure with EPERM on i386 pulseaudio
+    volumes:
+      - ./game/microkiri:/microkiri
+      - x11socket:/tmp/.X11-unix/
+    ports:
+      - 5900:5900 # VNC for debugging
+
+volumes:
+  x11socket:
