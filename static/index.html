@@ -10,7 +10,7 @@
 <body>
 
 <h2>Videos</h2>
-<div id="remoteVideos"></div>
+<div id="remote"></div>
 
 <script>
     const config = {
@@ -26,11 +26,11 @@
 
     pc.ontrack = function (event) {
         console.log("on track: ", event);
-        var el = document.createElement(event.track.kind);
+        const el = document.createElement(event.track.kind);
         el.srcObject = event.streams[0];
         el.autoplay = true;
         el.controls = true;
-        document.getElementById('remoteVideos').appendChild(el);
+        document.getElementById('remote').appendChild(el);
     };
 
     pc.oniceconnectionstatechange = e => console.log("connection state: ", pc.iceConnectionState);

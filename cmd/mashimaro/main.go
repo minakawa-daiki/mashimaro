@@ -37,8 +37,12 @@ func main() {
 			respondError(w, err)
 			return
 		}
-		payloadType := getPayloadType(media)
-		peer, err := p2p.NewPeer(pc, payloadType)
+		payloadTypes, err := getPayloadTypes(media)
+		if err != nil {
+			respondError(w, err)
+			return
+		}
+		peer, err := p2p.NewPeer(pc, payloadTypes.videoPayloadType, payloadTypes.audioPayloadType)
 		if err != nil {
 			respondError(w, err)
 			return
@@ -97,14 +101,38 @@ func respondError(w http.ResponseWriter, err error) {
 	http.Error(w, err.Error(), http.StatusInternalServerError)
 }
 
-func getPayloadType(media *webrtc.MediaEngine) uint8 {
-	var payloadType uint8
-	for _, codec := range media.GetCodecsByKind(webrtc.RTPCodecTypeVideo) {
-		if codec.Name == webrtc.H264 {
-			payloadType = codec.PayloadType
+type mediaPayloadTypes struct {
+	videoPayloadType uint8
+	audioPayloadType uint8
+}
+
+func getPayloadTypes(media *webrtc.MediaEngine) (*mediaPayloadTypes, error) {
+	pt := &mediaPayloadTypes{}
+	{
+		videoFound := false
+		for _, codec := range media.GetCodecsByKind(webrtc.RTPCodecTypeVideo) {
+			if codec.Name == webrtc.H264 {
+				pt.videoPayloadType = codec.PayloadType
+				videoFound = true
+			}
+		}
+		if !videoFound {
+			return nil, fmt.Errorf("could not find video codec from media engine (H.264)")
 		}
 	}
-	return payloadType
+	{
+		audioFound := false
+		for _, codec := range media.GetCodecsByKind(webrtc.RTPCodecTypeAudio) {
+			if codec.Name == webrtc.Opus {
+				pt.audioPayloadType = codec.PayloadType
+				audioFound = true
+			}
+		}
+		if !audioFound {
+			return nil, fmt.Errorf("could not find audio codec from media engine (Opus)")
+		}
+	}
+	return pt, nil
 }
 
 func createAnswer(pc *webrtc.PeerConnection, offer *webrtc.SessionDescription) (*webrtc.SessionDescription, error) {

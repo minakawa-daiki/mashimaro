@@ -39,9 +39,7 @@ func (m *Manager) Start(ctx context.Context) {
 					delete(m.peers, id)
 					log.Printf("removed peer(id: %v)", id)
 				}()
-				if err := peer.Start(); err != nil {
-					log.Printf("failed to serve peer: %+v", err)
-				}
+				peer.Start(ctx)
 			}(m.idcnt)
 			log.Printf("added new peer(id: %v)", m.idcnt)
 		}

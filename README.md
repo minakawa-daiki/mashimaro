@@ -5,8 +5,11 @@ A simple PoC of cloud gaming.
 ## Usage
 
 ```sh
-docker-compose up -d
+make up
 open http://localhost:8080
+
+# tear down
+make down
 ```
 
 ## Debugging with VNC
