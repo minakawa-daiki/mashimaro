@@ -13,7 +13,7 @@ import (
 
 	"github.com/castaneai/mashimaro/pkg/p2p"
 
-	"github.com/pion/webrtc/v2"
+	"github.com/pion/webrtc/v3"
 )
 
 func main() {
@@ -32,17 +32,12 @@ func main() {
 			respondError(w, err)
 			return
 		}
-		pc, media, err := newPeerConnection(offer)
+		pc, err := newPeerConnection(offer)
 		if err != nil {
 			respondError(w, err)
 			return
 		}
-		payloadTypes, err := getPayloadTypes(media)
-		if err != nil {
-			respondError(w, err)
-			return
-		}
-		peer, err := p2p.NewPeer(pc, payloadTypes.videoPayloadType, payloadTypes.audioPayloadType)
+		peer, err := p2p.NewPeer(pc)
 		if err != nil {
 			respondError(w, err)
 			return
@@ -101,40 +96,6 @@ func respondError(w http.ResponseWriter, err error) {
 	http.Error(w, err.Error(), http.StatusInternalServerError)
 }
 
-type mediaPayloadTypes struct {
-	videoPayloadType uint8
-	audioPayloadType uint8
-}
-
-func getPayloadTypes(media *webrtc.MediaEngine) (*mediaPayloadTypes, error) {
-	pt := &mediaPayloadTypes{}
-	{
-		videoFound := false
-		for _, codec := range media.GetCodecsByKind(webrtc.RTPCodecTypeVideo) {
-			if codec.Name == webrtc.H264 {
-				pt.videoPayloadType = codec.PayloadType
-				videoFound = true
-			}
-		}
-		if !videoFound {
-			return nil, fmt.Errorf("could not find video codec from media engine (H.264)")
-		}
-	}
-	{
-		audioFound := false
-		for _, codec := range media.GetCodecsByKind(webrtc.RTPCodecTypeAudio) {
-			if codec.Name == webrtc.Opus {
-				pt.audioPayloadType = codec.PayloadType
-				audioFound = true
-			}
-		}
-		if !audioFound {
-			return nil, fmt.Errorf("could not find audio codec from media engine (Opus)")
-		}
-	}
-	return pt, nil
-}
-
 func createAnswer(pc *webrtc.PeerConnection, offer *webrtc.SessionDescription) (*webrtc.SessionDescription, error) {
 	log.Printf("new peer connected")
 	if err := pc.SetRemoteDescription(*offer); err != nil {
@@ -151,35 +112,16 @@ func createAnswer(pc *webrtc.PeerConnection, offer *webrtc.SessionDescription) (
 	return &answer, nil
 }
 
-func newPeerConnection(offer *webrtc.SessionDescription) (*webrtc.PeerConnection, *webrtc.MediaEngine, error) {
-	mediaEngine := webrtc.MediaEngine{}
-	if err := mediaEngine.PopulateFromSDP(*offer); err != nil {
-		return nil, nil, fmt.Errorf("failed to populate from SDP: %+v", err)
-	}
-
-	var payloadType uint8
-	for _, videoCodec := range mediaEngine.GetCodecsByKind(webrtc.RTPCodecTypeVideo) {
-		if videoCodec.Name == webrtc.H264 {
-			payloadType = videoCodec.PayloadType
-			break
-		}
-	}
-	if payloadType == 0 {
-		return nil, nil, fmt.Errorf("Remote peer does not support H264")
-	}
-
-	api := webrtc.NewAPI(webrtc.WithMediaEngine(mediaEngine))
-	pc, err := api.NewPeerConnection(webrtc.Configuration{
+func newPeerConnection(offer *webrtc.SessionDescription) (*webrtc.PeerConnection, error) {
+	pc, err := webrtc.NewPeerConnection(webrtc.Configuration{
 		ICEServers: []webrtc.ICEServer{
-			{
-				URLs: []string{"stun:stun.l.google.com:19302"},
-			},
+			{URLs: []string{"stun:stun.l.google.com:19302"}},
 		},
 	})
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	return pc, &mediaEngine, nil
+	return pc, nil
 }
 
 func decodeOffer(in string) (*webrtc.SessionDescription, error) {

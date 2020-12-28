@@ -4,22 +4,24 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"math/rand"
 
 	"github.com/castaneai/mashimaro/pkg/streams"
 
-	"github.com/pion/webrtc/v2"
-	"github.com/pion/webrtc/v2/pkg/media"
+	"github.com/pion/webrtc/v3"
+	"github.com/pion/webrtc/v3/pkg/media"
 )
 
 type Peer struct {
 	conn       *webrtc.PeerConnection
-	videoTrack *webrtc.Track
-	audioTrack *webrtc.Track
+	videoTrack *webrtc.TrackLocalStaticSample
+	audioTrack *webrtc.TrackLocalStaticSample
 }
 
-func NewPeer(conn *webrtc.PeerConnection, videoPayloadType, audioPayloadType uint8) (*Peer, error) {
-	videoTrack, err := conn.NewTrack(videoPayloadType, rand.Uint32(), "video", "pion")
+func NewPeer(conn *webrtc.PeerConnection) (*Peer, error) {
+	videoTrack, err := webrtc.NewTrackLocalStaticSample(webrtc.RTPCodecCapability{
+		MimeType:  webrtc.MimeTypeH264,
+		ClockRate: 90000, // why?
+	}, "video", "pion")
 	if err != nil {
 		return nil, err
 	}
@@ -28,7 +30,10 @@ func NewPeer(conn *webrtc.PeerConnection, videoPayloadType, audioPayloadType uin
 	}
 	log.Printf("added video track (codec: %v)", videoTrack.Codec())
 
-	audioTrack, err := conn.NewTrack(audioPayloadType, rand.Uint32(), "audio", "pion")
+	audioTrack, err := webrtc.NewTrackLocalStaticSample(webrtc.RTPCodecCapability{
+		MimeType:  webrtc.MimeTypeOpus,
+		ClockRate: 48000, // why?
+	}, "audio", "pion")
 	if err != nil {
 		return nil, err
 	}
@@ -82,8 +87,8 @@ func (p *Peer) startServingVideo(ctx context.Context) error {
 				return fmt.Errorf("failed to read chunk from stream: %+v", err)
 			}
 			if err := p.videoTrack.WriteSample(media.Sample{
-				Data:    chunk.Data,
-				Samples: p.videoTrack.Codec().ClockRate,
+				Data:     chunk.Data,
+				Duration: chunk.Duration,
 			}); err != nil {
 				return fmt.Errorf("failed to write video sample: %+v", err)
 			}
@@ -109,8 +114,8 @@ func (p *Peer) startServingAudio(ctx context.Context) error {
 				return fmt.Errorf("failed to read chunk from audio stream: %+v", err)
 			}
 			if err := p.audioTrack.WriteSample(media.Sample{
-				Data:    chunk.Data,
-				Samples: p.audioTrack.Codec().ClockRate,
+				Data:     chunk.Data,
+				Duration: chunk.Duration,
 			}); err != nil {
 				return fmt.Errorf("failed to write audio sample: %+v", err)
 			}

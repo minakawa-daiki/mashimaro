@@ -4,12 +4,14 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"time"
 
 	"github.com/notedit/gst"
 )
 
 type Chunk struct {
-	Data []byte
+	Data     []byte
+	Duration time.Duration
 }
 
 type Stream interface {
@@ -37,7 +39,8 @@ func (s *gstStream) ReadChunk() (*Chunk, error) {
 	}
 	s.gstElement.GetClock().GetClockTime()
 	return &Chunk{
-		Data: sample.Data,
+		Data:     sample.Data,
+		Duration: time.Duration(sample.Duration),
 	}, nil
 }
 
@@ -79,7 +82,7 @@ func GetOpusAudioStream() (Stream, error) {
 	if err := gst.CheckPlugins([]string{"pulseaudio", "opus"}); err != nil {
 		return nil, err
 	}
-	pipelineStr := fmt.Sprintf("pulsesrc server=localhost:4713 ! queue ! audioconvert ! opusenc ! appsink name=audio")
+	pipelineStr := fmt.Sprintf("pulsesrc server=localhost:4713 ! opusenc ! appsink name=audio")
 	log.Printf("starting gstreamer pipeline: %s", pipelineStr)
 	pipeline, err := gst.ParseLaunch(pipelineStr)
 	if err != nil {
