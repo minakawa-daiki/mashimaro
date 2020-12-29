@@ -18,25 +18,26 @@ import (
 )
 
 const (
-	OperationNewGame            = "new_game"
-	OperationOffer              = "offer"
-	OperationAnswer             = "answer"
-	OperationOfferICECandidate  = "offer_candidate"
-	OperationAnswerICECandidate = "answer_candidate"
+	OperationNewGame      = "new_game"
+	OperationOffer        = "offer"
+	OperationAnswer       = "answer"
+	OperationICECandidate = "ice_candidate"
 )
 
 type Server struct {
-	ctx       context.Context
-	cancel    context.CancelFunc
-	gsManager *gamesession.Manager
+	ctx            context.Context
+	cancel         context.CancelFunc
+	gsManager      *gamesession.Manager
+	trickleManager *trickleManager
 }
 
 func NewServer(gsManager *gamesession.Manager) *Server {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Server{
-		ctx:       ctx,
-		cancel:    cancel,
-		gsManager: gsManager,
+		ctx:            ctx,
+		cancel:         cancel,
+		gsManager:      gsManager,
+		trickleManager: newTrickleManager(),
 	}
 }
 
@@ -70,6 +71,14 @@ func encodeSDP(sdp *webrtc.SessionDescription) (string, error) {
 	return base64.StdEncoding.EncodeToString(b), nil
 }
 
+func encodeICECandidate(candidate webrtc.ICECandidateInit) string {
+	return candidate.Candidate
+}
+
+func decodeICECandidate(s string) webrtc.ICECandidateInit {
+	return webrtc.ICECandidateInit{Candidate: s}
+}
+
 func (s *Server) webSocketServer() websocket.Handler {
 	return func(ws *websocket.Conn) {
 		for {
@@ -91,15 +100,19 @@ func (s *Server) webSocketServer() websocket.Handler {
 }
 
 func (s *Server) handleRequest(ws *websocket.Conn, msg *message) {
-	ctx := context.Background() // TODO: timeout
-
 	switch msg.Operation {
 	case OperationNewGame:
-		ss, err := s.gsManager.NewSession(ctx, "test-game") // TODO: gameID request body
+		ss, err := s.gsManager.NewSession(s.ctx, "test-game") // TODO: gameID request body
 		if err != nil {
 			log.Printf("failed to new game: %+v", err)
 			return
 		}
+		s.trickleManager.NewSession(s.ctx, ss, func(candidate webrtc.ICECandidateInit) {
+			if err := websocket.JSON.Send(ws, &message{Operation: OperationICECandidate, Body: encodeICECandidate(candidate)}); err != nil {
+				log.Printf("failed to send ice candidate from pcAnswer to pcOffer: %+v", err)
+			}
+		})
+
 		log.Printf("created new session: %+v", ss)
 		if err := websocket.JSON.Send(ws, &message{Operation: OperationNewGame, Body: string(ss.SessionID)}); err != nil {
 			log.Printf("failed to send session via websocket: %+v", err)
@@ -112,7 +125,7 @@ func (s *Server) handleRequest(ws *websocket.Conn, msg *message) {
 			log.Printf("session not found: %s", msg.SessionID)
 			return
 		}
-		answer, err := ss.RPCClient.FirstSignaling(ctx, &proto.Offer{Body: msg.Body})
+		answer, err := ss.RPCClient.FirstSignaling(s.ctx, &proto.Offer{Body: msg.Body})
 		if err != nil {
 			log.Printf("failed to first signaling with game server: %+v", err)
 			return
@@ -121,6 +134,18 @@ func (s *Server) handleRequest(ws *websocket.Conn, msg *message) {
 		if err := websocket.JSON.Send(ws, msg); err != nil {
 			log.Printf("failed to send via websocket: %+v", err)
 		}
+
+	case OperationICECandidate:
+		ss, ok := s.gsManager.GetSession(msg.SessionID)
+		if !ok {
+			log.Printf("session not found: %s", msg.SessionID)
+			return
+		}
+		if err := s.trickleManager.AddICECandidate(ss.SessionID, decodeICECandidate(msg.Body)); err != nil {
+			log.Printf("failed to add ice candidate: %+v", err)
+			return
+		}
+
 	default:
 		log.Printf("unknown operation received: %s", msg.Operation)
 	}

@@ -2,11 +2,14 @@ package signaling
 
 import (
 	"context"
+	"io"
 	"log"
 	"net"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/castaneai/mashimaro/pkg/gameserver"
 
 	"github.com/castaneai/mashimaro/pkg/gamesession"
 	"github.com/castaneai/mashimaro/pkg/proto"
@@ -20,6 +23,13 @@ import (
 )
 
 type mockGameServerService struct {
+	iceChannels *gameserver.ICEChannels
+}
+
+func newMockGameServerService() *mockGameServerService {
+	return &mockGameServerService{
+		iceChannels: gameserver.NewICEChannels(),
+	}
 }
 
 func (s *mockGameServerService) FirstSignaling(ctx context.Context, req *proto.Offer) (*proto.Answer, error) {
@@ -27,7 +37,7 @@ func (s *mockGameServerService) FirstSignaling(ctx context.Context, req *proto.O
 	if err != nil {
 		return nil, err
 	}
-	answer, _, err := startSignaling(ctx, *offer)
+	answer, err := gameserver.StartSignaling(ctx, *offer, s.iceChannels)
 	if err != nil {
 		return nil, err
 	}
@@ -38,12 +48,31 @@ func (s *mockGameServerService) FirstSignaling(ctx context.Context, req *proto.O
 	return &proto.Answer{Body: answerBody}, nil
 }
 
-func (s *mockGameServerService) TrickleSignaling(server proto.GameServer_TrickleSignalingServer) error {
-	panic("implement me")
+func (s *mockGameServerService) TrickleSignaling(stream proto.GameServer_TrickleSignalingServer) error {
+	go func() {
+		for {
+			select {
+			case <-stream.Context().Done():
+				return
+			case candidate := <-s.iceChannels.AnswerCandidate:
+				if err := stream.Send(&proto.ICECandidate{Body: encodeICECandidate(candidate)}); err != nil {
+					log.Printf("failed to send ice candidate from pcAnswer to pcOffer: %+v", err)
+				}
+			}
+		}
+	}()
+	for {
+		recv, err := stream.Recv()
+		if err != nil {
+			return err
+		}
+		candidate := decodeICECandidate(recv.Body)
+		s.iceChannels.OfferCandidate <- candidate
+	}
 }
 
 func TestSignaling(t *testing.T) {
-	gss := &mockGameServerService{}
+	gss := newMockGameServerService()
 	gs := grpc.NewServer()
 	proto.RegisterGameServerServer(gs, gss)
 	lis := listenTCPWithRandomPort(t)
@@ -75,6 +104,60 @@ func TestSignaling(t *testing.T) {
 	_, err = pcOffer.AddTransceiverFromKind(webrtc.RTPCodecTypeAudio, webrtc.RTPTransceiverInit{Direction: webrtc.RTPTransceiverDirectionRecvonly})
 	assert.NoError(t, err)
 
+	connected := make(chan struct{})
+	pcOffer.OnICEConnectionStateChange(func(state webrtc.ICEConnectionState) {
+		log.Printf("[pcOffer] ICE state has changed: %s", state)
+	})
+	pcOffer.OnConnectionStateChange(func(state webrtc.PeerConnectionState) {
+		log.Printf("[pcOffer] connection state has changed: %s", state)
+		if state == webrtc.PeerConnectionStateConnected {
+			close(connected)
+		}
+	})
+
+	pendingCandidateCh := make(chan webrtc.ICECandidateInit, 10)
+	pcOffer.OnICECandidate(func(candidate *webrtc.ICECandidate) {
+		log.Printf("[pcOffer] new ICE candidate: %v", candidate)
+		if candidate == nil {
+			close(pendingCandidateCh)
+			return
+		}
+		if err := websocket.JSON.Send(ws, &message{Operation: OperationICECandidate, SessionID: sid, Body: encodeICECandidate(candidate.ToJSON())}); err != nil {
+			log.Printf("failed to send ICE candidate from pcOffer: %+v", err)
+		}
+	})
+
+	answerCh := make(chan webrtc.SessionDescription)
+	go func() {
+		for {
+			var msg message
+			if err := websocket.JSON.Receive(ws, &msg); err != nil {
+				if err != io.EOF {
+					log.Printf("failed to receive from server: %+v", err)
+				}
+				return
+			}
+			switch msg.Operation {
+			case OperationAnswer:
+				answer, err := decodeSDP(msg.Body)
+				if err != nil {
+					log.Printf("failed to decode answer SDP: %+v", err)
+					return
+				}
+				answerCh <- *answer
+			case OperationICECandidate:
+				candidate := decodeICECandidate(msg.Body)
+				if pcOffer.RemoteDescription() != nil {
+					if err := pcOffer.AddICECandidate(candidate); err != nil {
+						log.Printf("[offer] failed to add candidate: %+v", err)
+					}
+				} else {
+					pendingCandidateCh <- candidate
+				}
+			}
+		}
+	}()
+
 	offer, err := pcOffer.CreateOffer(nil)
 	assert.NoError(t, err)
 	assert.NoError(t, pcOffer.SetLocalDescription(offer))
@@ -82,12 +165,14 @@ func TestSignaling(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NoError(t, websocket.JSON.Send(ws, &message{Operation: OperationOffer, SessionID: sid, Body: body}))
 
-	var offerRes message
-	assert.NoError(t, websocket.JSON.Receive(ws, &offerRes))
-	assert.Equal(t, OperationAnswer, offerRes.Operation)
-	answer, err := decodeSDP(offerRes.Body)
-	assert.NoError(t, err)
-	assert.NoError(t, pcOffer.SetRemoteDescription(*answer))
+	answer := <-answerCh
+	assert.NoError(t, pcOffer.SetRemoteDescription(answer))
+	log.Printf("[pcOffer] got answer")
+	for candidate := range pendingCandidateCh {
+		assert.NoError(t, pcOffer.AddICECandidate(candidate))
+	}
+
+	<-connected
 }
 
 func listenTCPWithRandomPort(t *testing.T) net.Listener {
