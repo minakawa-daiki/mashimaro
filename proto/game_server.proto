@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+option go_package = "proto";
+
+service GameServer {
+    rpc FirstSignaling(Offer) returns (Answer) {};
+    rpc TrickleSignaling(stream ICECandidate) returns (stream ICECandidate) {};
+}
+
+message Offer {
+    string body =  1;
+}
+
+message Answer {
+    string body = 1;
+}
+
+message ICECandidate {
+    string body = 1;
+}
