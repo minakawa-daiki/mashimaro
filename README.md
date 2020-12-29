@@ -38,3 +38,10 @@ Make sure a PulseAudio daemon set up on your host and is listening on TCP `:4713
 # Run on 'streamer' container
 $ gst-launch-1.0 -v pulsesrc server=localhost:4713 ! queue ! pulsesink server=host.docker.internal:4713
 ```
+
+## Testing 
+
+```sh
+make test
+```
+
