@@ -10,6 +10,7 @@ import (
 func TestGstMediaStream_ReadChunk(t *testing.T) {
 	stream, err := streamer.NewVideoTestStream()
 	assert.NoError(t, err)
+	stream.Start()
 	chunk, err := stream.ReadChunk()
 	assert.NoError(t, err)
 	assert.NotNil(t, chunk)

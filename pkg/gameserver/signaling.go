@@ -3,6 +3,7 @@ package gameserver
 import (
 	"context"
 	"log"
+	"sync"
 
 	"github.com/pion/webrtc/v3"
 )
@@ -36,7 +37,8 @@ func startSignaling(ctx context.Context, offer webrtc.SessionDescription, handle
 		}
 	})
 
-	pendingCandidates := make(chan webrtc.ICECandidateInit, 30)
+	var pendingCandidates []webrtc.ICECandidateInit
+	var pendingMu sync.Mutex
 	go func() {
 		for {
 			select {
@@ -48,7 +50,9 @@ func startSignaling(ctx context.Context, offer webrtc.SessionDescription, handle
 						log.Printf("failed to add ice candidate from pcOffer: %+v", err)
 					}
 				} else {
-					pendingCandidates <- candidate
+					pendingMu.Lock()
+					pendingCandidates = append(pendingCandidates, candidate)
+					pendingMu.Unlock()
 				}
 			}
 		}
@@ -56,8 +60,9 @@ func startSignaling(ctx context.Context, offer webrtc.SessionDescription, handle
 	if err := pcAnswer.SetRemoteDescription(offer); err != nil {
 		return nil, err
 	}
-	close(pendingCandidates)
-	for candidate := range pendingCandidates {
+	pendingMu.Lock()
+	defer pendingMu.Unlock()
+	for _, candidate := range pendingCandidates {
 		if err := pcAnswer.AddICECandidate(candidate); err != nil {
 			return nil, err
 		}
