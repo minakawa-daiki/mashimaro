@@ -1,16 +1,22 @@
 version: "3.6"
 services:
-  streamer:
-    build: .
+  signaling:
+    build:
+      context: .
+      dockerfile: docker/signaling/Dockerfile
     environment:
       PORT: 8080
     ports:
-    - 8080:8080
+      - 8080:8080
+  streamer:
+    build:
+      context: .
+      dockerfile: docker/streamer/Dockerfile
     volumes:
       - x11socket:/tmp/.X11-unix/
   game:
     command: wine /microkiri/microkiri.exe
-    build: ./docker/wine
+    build: ./docker/game
     environment: 
       PULSE_SERVER: streamer:4713
     security_opt:

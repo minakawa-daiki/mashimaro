@@ -1,55 +1,88 @@
 <!doctype html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport"
-          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+        content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <title>mashimaro</title>
 </head>
+
 <body>
 
-<h2>Videos</h2>
-<div id="remote"></div>
+    <h2>mashimaro</h2>
+    <div id="remote"></div>
 
-<script>
-    const config = {
-        iceServers: [{urls: 'stun:stun.l.google.com:19302'}],
-    };
-    let pc = new RTCPeerConnection(config);
+    <script>
+        const config = {
+            iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
+        };
+        let pc = new RTCPeerConnection(config);
+        pc.oniceconnectionstatechange = e => console.log("connection state: ", pc.iceConnectionState);
+        pc.ontrack = function (event) {
+            console.log("on track: ", event);
+            const el = document.createElement(event.track.kind);
+            el.srcObject = event.streams[0];
+            el.autoplay = true;
+            el.controls = true;
+            document.getElementById('remote').appendChild(el);
+        };
 
-    pc.ontrack = function (event) {
-        console.log("on track: ", event);
-        const el = document.createElement(event.track.kind);
-        el.srcObject = event.streams[0];
-        el.autoplay = true;
-        el.controls = true;
-        document.getElementById('remote').appendChild(el);
-    };
+        const ws = new WebSocket("ws://localhost:8080/signal")
+        ws.onerror = e => {
+            console.error('ws error', e);
+        };
+        ws.onclose = () => {
+            console.error('ws closed');
+        };
 
-    pc.oniceconnectionstatechange = e => console.log("connection state: ", pc.iceConnectionState);
-    pc.onicecandidate = event => {
-        console.log("on ICE candidate...", event.candidate)
-    };
+        let pendingCandidates = [];
+        ws.onmessage = async (ev) => {
+            const msg = JSON.parse(ev.data);
+            switch (msg["operation"]) {
+                case "new_game":
+                    startSession(msg["body"]);
+                    break;
+                case "answer":
+                    console.log('got answer');
+                    await pc.setRemoteDescription(new RTCSessionDescription(JSON.parse(atob(msg["body"]))));
+                    pendingCandidates.forEach(candidate => {
+                        console.log('add pending candidate', candidate);
+                        pc.addIceCandidate(candidate);
+                    });
+                    break;
+                case "ice_candidate":
+                    const candidate = new RTCIceCandidate(JSON.parse(msg["body"]));
+                    if (pc.remoteDescription != null) {
+                        pc.addIceCandidate(candidate);
+                    } else {
+                        console.log('pending candidate: ', msg);
+                        pendingCandidates.push(candidate)
+                    }
+                    break;
+            }
+        };
+        ws.onopen = () => {
+            ws.send(JSON.stringify({ 'operation': 'new_game' }));
+        }
 
-    // HACK: to avoid gathering timeout with code 701...
-    // waiting for one second is usually sufficient.
-    // https://github.com/webrtc/samples/issues/1251
-    window.setTimeout(() => {
-        const offer = btoa(JSON.stringify(pc.localDescription));
-        console.log("offer created, start session....");
-        startSession(offer);
-    }, 1000);
+        const startSession = async (sid) => {
+            pc.onicecandidate = e => {
+                if (e.candidate === null) return;
+                const msg = { "operation": "ice_candidate", "session_id": sid, "body": JSON.stringify(e.candidate.toJSON()) };
+                ws.send(JSON.stringify(msg));
+            };
 
-    pc.addTransceiver('audio', {'direction': 'recvonly'});
-    pc.addTransceiver('video', {'direction': 'recvonly'});
-    pc.createOffer().then(d => pc.setLocalDescription(d)).catch(console.error);
+            pc.addTransceiver('audio', { 'direction': 'recvonly' });
+            pc.addTransceiver('video', { 'direction': 'recvonly' });
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
 
-    const startSession = async (offer) => {
-        const resp = await fetch('/hello', {body: offer, method: 'POST'});
-        const answer = await resp.text();
-        await pc.setRemoteDescription(new RTCSessionDescription(JSON.parse(atob(answer))))
-    };
-</script>
+            const msg = { "operation": "offer", "session_id": sid, "body": btoa(JSON.stringify(pc.localDescription)) };
+            ws.send(JSON.stringify(msg));
+        };
+    </script>
 </body>
+
 </html>

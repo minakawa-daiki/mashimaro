@@ -2,11 +2,10 @@ package signaling
 
 import (
 	"context"
-	"encoding/base64"
-	"encoding/json"
 	"io"
 	"log"
-	"net/http"
+
+	"github.com/castaneai/mashimaro/pkg/internal/webrtcutil"
 
 	"github.com/castaneai/mashimaro/pkg/proto"
 
@@ -41,45 +40,13 @@ func NewServer(gsManager *gamesession.Manager) *Server {
 	}
 }
 
-func (s *Server) ListenAndServe(addr string) error {
-	return http.ListenAndServe(addr, s.webSocketServer())
-}
-
 type message struct {
 	Operation string                `json:"operation"`
 	SessionID gamesession.SessionID `json:"session_id"`
 	Body      string                `json:"body"`
 }
 
-func decodeSDP(encoded string) (*webrtc.SessionDescription, error) {
-	b, err := base64.StdEncoding.DecodeString(encoded)
-	if err != nil {
-		return nil, err
-	}
-	var offer webrtc.SessionDescription
-	if err := json.Unmarshal(b, &offer); err != nil {
-		return nil, err
-	}
-	return &offer, nil
-}
-
-func encodeSDP(sdp *webrtc.SessionDescription) (string, error) {
-	b, err := json.Marshal(sdp)
-	if err != nil {
-		return "", err
-	}
-	return base64.StdEncoding.EncodeToString(b), nil
-}
-
-func encodeICECandidate(candidate webrtc.ICECandidateInit) string {
-	return candidate.Candidate
-}
-
-func decodeICECandidate(s string) webrtc.ICECandidateInit {
-	return webrtc.ICECandidateInit{Candidate: s}
-}
-
-func (s *Server) webSocketServer() websocket.Handler {
+func (s *Server) WebSocketHandler() websocket.Handler {
 	return func(ws *websocket.Conn) {
 		for {
 			select {
@@ -107,9 +74,16 @@ func (s *Server) handleRequest(ws *websocket.Conn, msg *message) {
 			log.Printf("failed to new game: %+v", err)
 			return
 		}
-		s.trickleManager.NewSession(s.ctx, ss, func(candidate webrtc.ICECandidateInit) {
-			if err := websocket.JSON.Send(ws, &message{Operation: OperationICECandidate, Body: encodeICECandidate(candidate)}); err != nil {
+		s.trickleManager.NewSession(s.ctx, ss, func(candidate *webrtc.ICECandidateInit) {
+			body, err := webrtcutil.EncodeICECandidate(candidate)
+			if err != nil {
+				log.Printf("failed to encode ICE candidate: %+v", err)
+				return
+			}
+			log.Printf("send candidate from answer to offer: %v", candidate)
+			if err := websocket.JSON.Send(ws, &message{Operation: OperationICECandidate, Body: body}); err != nil {
 				log.Printf("failed to send ice candidate from pcAnswer to pcOffer: %+v", err)
+				return
 			}
 		})
 
@@ -141,7 +115,12 @@ func (s *Server) handleRequest(ws *websocket.Conn, msg *message) {
 			log.Printf("session not found: %s", msg.SessionID)
 			return
 		}
-		if err := s.trickleManager.AddICECandidate(ss.SessionID, decodeICECandidate(msg.Body)); err != nil {
+		candidate, err := webrtcutil.DecodeICECandidate(msg.Body)
+		if err != nil {
+			log.Printf("failed to decode ICE candidate: %+v", err)
+			return
+		}
+		if err := s.trickleManager.AddICECandidate(ss.SessionID, candidate); err != nil {
 			log.Printf("failed to add ice candidate: %+v", err)
 			return
 		}

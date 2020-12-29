@@ -1,7 +1,6 @@
 package signaling
 
 import (
-	"context"
 	"io"
 	"log"
 	"net"
@@ -9,7 +8,11 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/castaneai/mashimaro/pkg/streamer"
+
 	"github.com/castaneai/mashimaro/pkg/gameserver"
+
+	"github.com/castaneai/mashimaro/pkg/internal/webrtcutil"
 
 	"github.com/castaneai/mashimaro/pkg/gamesession"
 	"github.com/castaneai/mashimaro/pkg/proto"
@@ -22,57 +25,12 @@ import (
 	"github.com/pion/webrtc/v3"
 )
 
-type mockGameServerService struct {
-	iceChannels *gameserver.ICEChannels
-}
-
-func newMockGameServerService() *mockGameServerService {
-	return &mockGameServerService{
-		iceChannels: gameserver.NewICEChannels(),
-	}
-}
-
-func (s *mockGameServerService) FirstSignaling(ctx context.Context, req *proto.Offer) (*proto.Answer, error) {
-	offer, err := decodeSDP(req.Body)
-	if err != nil {
-		return nil, err
-	}
-	answer, err := gameserver.StartSignaling(ctx, *offer, s.iceChannels)
-	if err != nil {
-		return nil, err
-	}
-	answerBody, err := encodeSDP(answer)
-	if err != nil {
-		return nil, err
-	}
-	return &proto.Answer{Body: answerBody}, nil
-}
-
-func (s *mockGameServerService) TrickleSignaling(stream proto.GameServer_TrickleSignalingServer) error {
-	go func() {
-		for {
-			select {
-			case <-stream.Context().Done():
-				return
-			case candidate := <-s.iceChannels.AnswerCandidate:
-				if err := stream.Send(&proto.ICECandidate{Body: encodeICECandidate(candidate)}); err != nil {
-					log.Printf("failed to send ice candidate from pcAnswer to pcOffer: %+v", err)
-				}
-			}
-		}
-	}()
-	for {
-		recv, err := stream.Recv()
-		if err != nil {
-			return err
-		}
-		candidate := decodeICECandidate(recv.Body)
-		s.iceChannels.OfferCandidate <- candidate
-	}
-}
-
 func TestSignaling(t *testing.T) {
-	gss := newMockGameServerService()
+	videoSrc, err := streamer.NewVideoTestStream()
+	assert.NoError(t, err)
+	audioSrc, err := streamer.NewAudioTestStream()
+	assert.NoError(t, err)
+	gss := gameserver.NewGameServerService(videoSrc, audioSrc)
 	gs := grpc.NewServer()
 	proto.RegisterGameServerServer(gs, gss)
 	lis := listenTCPWithRandomPort(t)
@@ -122,8 +80,25 @@ func TestSignaling(t *testing.T) {
 			close(pendingCandidateCh)
 			return
 		}
-		if err := websocket.JSON.Send(ws, &message{Operation: OperationICECandidate, SessionID: sid, Body: encodeICECandidate(candidate.ToJSON())}); err != nil {
+		candidateInit := candidate.ToJSON()
+		body, err := webrtcutil.EncodeICECandidate(&candidateInit)
+		if err != nil {
+			log.Printf("failed to encode ICE candidate: %+v", err)
+			return
+		}
+		if err := websocket.JSON.Send(ws, &message{Operation: OperationICECandidate, SessionID: sid, Body: body}); err != nil {
 			log.Printf("failed to send ICE candidate from pcOffer: %+v", err)
+		}
+	})
+
+	videoTrackCh := make(chan *webrtc.TrackRemote)
+	audioTrackCh := make(chan *webrtc.TrackRemote)
+	pcOffer.OnTrack(func(remote *webrtc.TrackRemote, receiver *webrtc.RTPReceiver) {
+		switch remote.Kind() {
+		case webrtc.RTPCodecTypeAudio:
+			audioTrackCh <- remote
+		case webrtc.RTPCodecTypeVideo:
+			videoTrackCh <- remote
 		}
 	})
 
@@ -139,20 +114,24 @@ func TestSignaling(t *testing.T) {
 			}
 			switch msg.Operation {
 			case OperationAnswer:
-				answer, err := decodeSDP(msg.Body)
+				answer, err := webrtcutil.DecodeSDP(msg.Body)
 				if err != nil {
 					log.Printf("failed to decode answer SDP: %+v", err)
 					return
 				}
 				answerCh <- *answer
 			case OperationICECandidate:
-				candidate := decodeICECandidate(msg.Body)
+				candidate, err := webrtcutil.DecodeICECandidate(msg.Body)
+				if err != nil {
+					log.Printf("[offer] failed to decode ICE candidate: %+v", err)
+					return
+				}
 				if pcOffer.RemoteDescription() != nil {
-					if err := pcOffer.AddICECandidate(candidate); err != nil {
+					if err := pcOffer.AddICECandidate(*candidate); err != nil {
 						log.Printf("[offer] failed to add candidate: %+v", err)
 					}
 				} else {
-					pendingCandidateCh <- candidate
+					pendingCandidateCh <- *candidate
 				}
 			}
 		}
@@ -161,7 +140,7 @@ func TestSignaling(t *testing.T) {
 	offer, err := pcOffer.CreateOffer(nil)
 	assert.NoError(t, err)
 	assert.NoError(t, pcOffer.SetLocalDescription(offer))
-	body, err := encodeSDP(&offer)
+	body, err := webrtcutil.EncodeSDP(&offer)
 	assert.NoError(t, err)
 	assert.NoError(t, websocket.JSON.Send(ws, &message{Operation: OperationOffer, SessionID: sid, Body: body}))
 
@@ -173,6 +152,12 @@ func TestSignaling(t *testing.T) {
 	}
 
 	<-connected
+
+	videoTrack := <-videoTrackCh
+	audioTrack := <-audioTrackCh
+	assert.Equal(t, "mashimaro", videoTrack.StreamID())
+	assert.Equal(t, "mashimaro", audioTrack.StreamID())
+	assert.NoError(t, pcOffer.Close())
 }
 
 func listenTCPWithRandomPort(t *testing.T) net.Listener {
@@ -204,7 +189,7 @@ func (ts *testServer) DialWebSocket(t *testing.T) *websocket.Conn {
 
 func newTestServer(gsManager *gamesession.Manager) *testServer {
 	s := NewServer(gsManager)
-	hs := httptest.NewServer(s.webSocketServer())
+	hs := httptest.NewServer(s.WebSocketHandler())
 	return &testServer{
 		Server: s,
 		hs:     hs,

@@ -6,6 +6,8 @@ import (
 	"log"
 	"sync"
 
+	"github.com/castaneai/mashimaro/pkg/internal/webrtcutil"
+
 	"github.com/castaneai/mashimaro/pkg/proto"
 
 	"github.com/pion/webrtc/v3"
@@ -29,7 +31,7 @@ func newTrickleManager() *trickleManager {
 	}
 }
 
-func (m *trickleManager) NewSession(ctx context.Context, ss *gamesession.Session, onAnswerICECandidate func(init webrtc.ICECandidateInit)) {
+func (m *trickleManager) NewSession(ctx context.Context, ss *gamesession.Session, onAnswerICECandidate func(init *webrtc.ICECandidateInit)) {
 	stream, err := ss.RPCClient.TrickleSignaling(ctx)
 	if err != nil {
 		log.Printf("failed to call trickle signaling: %+v", err)
@@ -49,7 +51,12 @@ func (m *trickleManager) NewSession(ctx context.Context, ss *gamesession.Session
 					log.Printf("failed to recv from trickle signaling stream: %+v", err)
 					return
 				}
-				onAnswerICECandidate(decodeICECandidate(recv.Body))
+				candidate, err := webrtcutil.DecodeICECandidate(recv.Body)
+				if err != nil {
+					log.Printf("failed to decode ICE candidate: %+v", err)
+					return
+				}
+				onAnswerICECandidate(candidate)
 			}
 		}
 	}()
@@ -61,14 +68,18 @@ func (m *trickleManager) NewSession(ctx context.Context, ss *gamesession.Session
 	}
 }
 
-func (m *trickleManager) AddICECandidate(sid gamesession.SessionID, candidate webrtc.ICECandidateInit) error {
+func (m *trickleManager) AddICECandidate(sid gamesession.SessionID, candidate *webrtc.ICECandidateInit) error {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	ts, ok := m.sessions[sid]
 	if !ok {
 		return fmt.Errorf("trickle session not found (sid: %s)", sid)
 	}
-	if err := ts.stream.Send(&proto.ICECandidate{Body: encodeICECandidate(candidate)}); err != nil {
+	body, err := webrtcutil.EncodeICECandidate(candidate)
+	if err != nil {
+		return fmt.Errorf("failed to encode ICE candidate: %+v", err)
+	}
+	if err := ts.stream.Send(&proto.ICECandidate{Body: body}); err != nil {
 		return fmt.Errorf("failed to send ice candidate: %+v", err)
 	}
 	return nil

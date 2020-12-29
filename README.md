@@ -12,6 +12,21 @@ open http://localhost:8080
 make down
 ```
 
+## Debugging on local (without Docker)
+
+- Requires [GStreamer](https://gstreamer.freedesktop.org/) and [Node.js](https://nodejs.org/ja/)
+
+```sh
+# Start streamer
+USE_TEST_MEDIA_SOURCE=1 go run cmd/streamer/main.go
+
+# Start signaling server
+STREAMER_ADDR=localhost:50501 go run cmd/signaling/main.go
+
+# Open web client
+npx live-server ./static
+```
+
 ## Debugging with VNC
 
 ```sh
