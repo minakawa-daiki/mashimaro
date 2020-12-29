@@ -48,6 +48,8 @@ type message struct {
 
 func (s *Server) WebSocketHandler() websocket.Handler {
 	return func(ws *websocket.Conn) {
+		sessionCtx, cancel := context.WithCancel(s.ctx)
+		defer cancel()
 		for {
 			select {
 			case <-s.ctx.Done():
@@ -60,21 +62,21 @@ func (s *Server) WebSocketHandler() websocket.Handler {
 					}
 					return
 				}
-				s.handleRequest(ws, &msg)
+				s.handleRequest(sessionCtx, ws, &msg)
 			}
 		}
 	}
 }
 
-func (s *Server) handleRequest(ws *websocket.Conn, msg *message) {
+func (s *Server) handleRequest(ctx context.Context, ws *websocket.Conn, msg *message) {
 	switch msg.Operation {
 	case OperationNewGame:
-		ss, err := s.gsManager.NewSession(s.ctx, "test-game") // TODO: gameID request body
+		ss, err := s.gsManager.NewSession(ctx, "test-game") // TODO: gameID request body
 		if err != nil {
 			log.Printf("failed to new game: %+v", err)
 			return
 		}
-		s.trickleManager.NewSession(s.ctx, ss, func(candidate *webrtc.ICECandidateInit) {
+		s.trickleManager.NewSession(ctx, ss, func(candidate *webrtc.ICECandidateInit) {
 			body, err := webrtcutil.EncodeICECandidate(candidate)
 			if err != nil {
 				log.Printf("failed to encode ICE candidate: %+v", err)
@@ -99,7 +101,7 @@ func (s *Server) handleRequest(ws *websocket.Conn, msg *message) {
 			log.Printf("session not found: %s", msg.SessionID)
 			return
 		}
-		answer, err := ss.RPCClient.FirstSignaling(s.ctx, &proto.Offer{Body: msg.Body})
+		answer, err := ss.RPCClient.FirstSignaling(ctx, &proto.Offer{Body: msg.Body})
 		if err != nil {
 			log.Printf("failed to first signaling with game server: %+v", err)
 			return
