@@ -47,10 +47,10 @@
                 case "answer":
                     console.log('got answer');
                     await pc.setRemoteDescription(new RTCSessionDescription(JSON.parse(atob(msg["body"]))));
-                    pendingCandidates.forEach(async (candidate) => {
-                        console.log('add pending candidate', candidate);
-                        await pc.addIceCandidate(candidate);
-                    });
+                    for (const candidate1 of pendingCandidates) {
+                        console.log('add pending candidate', candidate1);
+                        await pc.addIceCandidate(candidate1);
+                    }
                     break;
                 case "ice_candidate":
                     const candidate = new RTCIceCandidate(JSON.parse(msg["body"]));

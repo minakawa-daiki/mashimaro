@@ -82,7 +82,6 @@ func (s *Server) handleRequest(ctx context.Context, ws *websocket.Conn, msg *mes
 				log.Printf("failed to encode ICE candidate: %+v", err)
 				return
 			}
-			log.Printf("send candidate from answer to offer: %v", candidate)
 			if err := websocket.JSON.Send(ws, &message{Operation: OperationICECandidate, Body: body}); err != nil {
 				log.Printf("failed to send ice candidate from pcAnswer to pcOffer: %+v", err)
 				return
