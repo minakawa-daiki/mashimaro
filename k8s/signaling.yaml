@@ -15,14 +15,3 @@ spec:
         - name: websocket
           containerPort: 8080
 ---
-kind: Service
-apiVersion: v1
-metadata:
-  name: signaling
-  namespace: mashimaro
-spec:
-  selector:
-    component: signaling
-  clusterIP: None
-  type: ClusterIP
----

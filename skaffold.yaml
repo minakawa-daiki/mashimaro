@@ -1,0 +1,28 @@
+apiVersion: skaffold/v2beta10
+kind: Config
+build:
+  artifacts:
+    - image: mashimaro/signaling
+      context: .
+      docker:
+        dockerfile: docker/signaling/Dockerfile
+    - image: mashimaro/streamer
+      context: .
+      docker:
+        dockerfile: docker/streamer/Dockerfile
+    - image: mashimaro/game
+      context: docker/game
+      docker:
+        dockerfile: Dockerfile
+  local:
+    useBuildkit: true
+deploy:
+  kubectl:
+    manifests:
+      - k8s/signaling.yaml
+portForward:
+  - resourceType: Pod
+    resourceName: signaling
+    namespace: mashimaro
+    port: 8080
+    localPort: 8080

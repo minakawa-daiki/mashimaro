@@ -2,6 +2,19 @@
 
 A simple PoC of cloud gaming.
 
+## Requirements
+
+### Local development with Kubernetes
+
+- minikube
+- skaffold
+- docker
+
+### Local development without Kubernetes
+
+- Go 1.14+
+- Gstreamer dev headers (`libgstreamer1.0-dev`, `libgstreamer-plugins-base1.0-dev`)
+
 ## Usage
 
 ```sh
@@ -14,7 +27,7 @@ make down
 
 ## Debugging on local (without Docker)
 
-- Requires [GStreamer](https://gstreamer.freedesktop.org/) and [Node.js](https://nodejs.org/ja/)
+- Requires npm (node.js)
 
 ```sh
 # Start streamer
