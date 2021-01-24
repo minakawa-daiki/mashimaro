@@ -1,8 +1,15 @@
+MINIKUBE_PROFILE := mashimaro
+
 build:
 	docker-compose build
 
 up:
-	docker-compose up -d
+	minikube start -p $(MINIKUBE_PROFILE) --cpus=3 --memory=2500mb --driver=virtualbox
+	minikube profile $(MINIKUBE_PROFILE)
+	kubectl apply -f k8s/namespace.yaml # You need to create your namespaces before installing Agones.
+	helm repo add agones https://agones.dev/chart/stable
+	helm repo update
+	helm install agones --set "gameservers.namespaces={mashimaro}" --namespace agones-system --create-namespace agones/agones
 
 down:
 	docker-compose down
