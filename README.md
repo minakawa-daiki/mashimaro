@@ -12,13 +12,14 @@ A simple PoC of cloud gaming.
 
 ### Local development without Kubernetes
 
-- Go 1.14+
+- Go 1.13+
 - Gstreamer dev headers (`libgstreamer1.0-dev`, `libgstreamer-plugins-base1.0-dev`)
 
 ## Usage
 
 ```sh
 make up
+make run
 open http://localhost:8080
 
 # tear down
@@ -27,17 +28,15 @@ make down
 
 ## Debugging on local (without Docker)
 
-- Requires npm (node.js)
-
 ```sh
 # Start streamer
 USE_TEST_MEDIA_SOURCE=1 go run cmd/streamer/main.go
 
 # Start signaling server
-STREAMER_ADDR=localhost:50501 go run cmd/signaling/main.go
+GAMESERVER_ADDR=localhost:50501 go run cmd/signaling/main.go
 
 # Open web client
-npx live-server ./static
+open http://localhost:8080
 ```
 
 ## Debugging with VNC

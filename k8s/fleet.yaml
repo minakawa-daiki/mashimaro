@@ -1,0 +1,20 @@
+apiVersion: "agones.dev/v1"
+kind: Fleet
+metadata:
+  name: mashimaro-fleet
+  namespace: mashimaro
+spec:
+  replicas: 2
+  strategy:
+    type: Recreate
+  template:
+    spec:
+      ports:
+        - name: streamer
+          containerPort: 50501
+          protocol: TCP
+      template:
+        spec:
+          containers:
+            - name: streamer
+              image: mashimaro/streamer

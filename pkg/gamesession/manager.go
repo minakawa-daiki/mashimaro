@@ -2,6 +2,7 @@ package gamesession
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
 	"google.golang.org/grpc"
@@ -31,11 +32,11 @@ func (m *Manager) NewSession(ctx context.Context, gameID string) (*Session, erro
 	sid := SessionID(uuid.Must(uuid.NewRandom()).String())
 	gs, err := m.allocator.Allocate(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to allocate gameserver: %+v", err)
 	}
 	cc, err := grpc.Dial(gs.Addr, grpc.WithInsecure())
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to connect to gameserver: %+v", err)
 	}
 	rpcc := proto.NewGameServerClient(cc)
 

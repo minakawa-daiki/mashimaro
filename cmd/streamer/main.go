@@ -5,15 +5,21 @@ import (
 	"log"
 	"net"
 	"os"
+	"time"
 
 	"github.com/castaneai/mashimaro/pkg/streamer"
 
+	sdk "agones.dev/agones/sdks/go"
 	"github.com/castaneai/mashimaro/pkg/gameserver"
 	"github.com/castaneai/mashimaro/pkg/proto"
 	"google.golang.org/grpc"
 )
 
 func main() {
+	if isRunningOnKubernetes() {
+		setupAgones()
+	}
+
 	videoSrc, audioSrc, err := newMediaSources()
 	if err != nil {
 		log.Fatalf("failed to new media sources: %+v", err)
@@ -51,4 +57,32 @@ func newMediaSources() (videoSrc, audioSrc streamer.MediaStream, err error) {
 	}
 	audioSrc, err = streamer.NewPulseAudioStream("localhost:4713")
 	return
+}
+
+func isRunningOnKubernetes() bool {
+	_, err := os.Stat("/var/run/secrets/kubernetes.io")
+	return !os.IsNotExist(err)
+}
+
+func setupAgones() {
+	agones, err := sdk.NewSDK()
+	if err != nil {
+		log.Fatalf("failed to new Agones SDK: %+v", err)
+	}
+	if err := agones.Ready(); err != nil {
+		log.Fatalf("failed to ready to Agones SDK: %+v", err)
+	}
+	log.Printf("connected to Agones SDK")
+	go doHealth(agones)
+}
+
+func doHealth(agones *sdk.SDK) {
+	ticker := time.NewTicker(2 * time.Second)
+	defer ticker.Stop()
+	for range ticker.C {
+		if err := agones.Health(); err != nil {
+			log.Printf("failed to health to Agones SDK: %+v", err)
+			break
+		}
+	}
 }

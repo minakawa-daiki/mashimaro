@@ -12,11 +12,10 @@ import (
 )
 
 func main() {
-	streamerAddr := "streamer:50501" // TODO: Agones
-	if sa := os.Getenv("STREAMER_ADDR"); sa != "" {
-		streamerAddr = sa
+	allocator, err := newAllocator()
+	if err != nil {
+		log.Fatalf("failed to new allocator: %+v", err)
 	}
-	allocator := &gamesession.MockAllocator{MockedGS: &gamesession.GameServer{Addr: streamerAddr}}
 	gsManager := gamesession.NewManager(allocator)
 	sv := signaling.NewServer(gsManager)
 	http.Handle("/signal", sv.WebSocketHandler())
@@ -51,4 +50,14 @@ func main() {
 func respondError(w http.ResponseWriter, err error) {
 	log.Printf("error: %+v", err)
 	http.Error(w, err.Error(), http.StatusInternalServerError)
+}
+
+func newAllocator() (gamesession.Allocator, error) {
+	if sa := os.Getenv("GAMESERVER_ADDR"); sa != "" {
+		return &gamesession.MockAllocator{MockedGS: &gamesession.GameServer{Addr: sa}}, nil
+	}
+
+	addr := "agones-allocator.agones-system.svc.cluster.local.:443"
+	// TODO: current namespace from k8s
+	return gamesession.NewAgonesAllocator(addr, "mashimaro"), nil
 }

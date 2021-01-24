@@ -6,7 +6,12 @@ up:
 	minikube kubectl -- apply -f k8s/namespace.yaml # You need to create your namespaces before installing Agones.
 	helm repo add agones https://agones.dev/chart/stable
 	helm repo update
-	helm upgrade --install agones --set "gameservers.namespaces={mashimaro}" --namespace agones-system --create-namespace agones/agones
+	helm upgrade --install agones  --namespace agones-system --create-namespace \
+		--set "gameservers.namespaces={mashimaro}" \
+		--set "agones.allocator.generateTLS=false" \
+		--set "agones.allocator.disableMTLS=true" \
+		--set "agones.allocator.disableTLS=true" \
+		agones/agones
 
 run:
 	skaffold run --minikube-profile=$(MINIKUBE_PROFILE) --port-forward --tail
