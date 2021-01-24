@@ -9,6 +9,7 @@ spec:
     type: Recreate
   template:
     spec:
+      container: streamer
       ports:
         - name: streamer
           containerPort: 50501
@@ -18,3 +19,7 @@ spec:
           containers:
             - name: streamer
               image: mashimaro/streamer
+            - name: game
+              image: mashimaro/game
+              command: ["wine"]
+              args: ["/microkiri/microkiri.exe"]
