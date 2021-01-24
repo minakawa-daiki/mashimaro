@@ -5,6 +5,7 @@ services:
       context: .
       dockerfile: docker/signaling/Dockerfile
     environment:
+      GAMESERVER_ADDR: "streamer:50501"
       PORT: 8080
     ports:
       - 8080:8080
