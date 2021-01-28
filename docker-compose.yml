@@ -7,6 +7,10 @@ services:
     environment:
       PORT: 8081
       INTERNAL_PORT: 50501
+  ayame:
+    build: ./services/ayame
+    ports:
+    - 3000:3000
   signaling:
     build:
       context: .

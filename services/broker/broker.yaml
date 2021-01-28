@@ -12,7 +12,7 @@ spec:
       image: mashimaro/broker
       imagePullPolicy: IfNotPresent
       ports:
-        - name:
+        - name: http
           containerPort: 8081
       env:
         - name: PORT
