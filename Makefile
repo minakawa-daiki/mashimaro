@@ -3,7 +3,7 @@ MINIKUBE_PROFILE := mashimaro
 up:
 	minikube start -p $(MINIKUBE_PROFILE) --kubernetes-version v1.17.13
 	minikube profile $(MINIKUBE_PROFILE)
-	minikube kubectl -- apply -f k8s/namespace.yaml # You need to create your namespaces before installing Agones.
+	minikube kubectl -- apply -f services/namespace.yaml # You need to create your namespaces before installing Agones.
 	helm repo add agones https://agones.dev/chart/stable
 	helm repo update
 	helm upgrade --install agones  --namespace agones-system --create-namespace \
@@ -17,6 +17,9 @@ run:
 	skaffold run --minikube-profile=$(MINIKUBE_PROFILE) --port-forward --tail
 
 down:
+	minikube stop -p $(MINIKUBE_PROFILE)
+
+delete:
 	minikube delete -p $(MINIKUBE_PROFILE)
 
 generate:

@@ -11,8 +11,8 @@ spec:
     spec:
       container: gameagent
       ports:
-        - name: gameagent
-          containerPort: 50501
+        - name: dummy
+          containerPort: 12345
           protocol: TCP
       template:
         spec:

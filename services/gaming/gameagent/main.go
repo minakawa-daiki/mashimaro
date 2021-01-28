@@ -6,6 +6,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/castaneai/mashimaro/pkg/streamer"
+
 	"github.com/castaneai/mashimaro/pkg/proto"
 	"google.golang.org/grpc"
 
@@ -25,13 +27,21 @@ func main() {
 		gameServerName = gs.ObjectMeta.Name
 	}
 
-	brokerCC, err := grpc.Dial("broker:50501", grpc.WithInsecure())
+	brokerAddr := "broker:50501"
+	if a := os.Getenv("BROKER_ADDR"); a != "" {
+		brokerAddr = a
+	}
+	brokerCC, err := grpc.Dial(brokerAddr, grpc.WithInsecure())
 	if err != nil {
 		log.Fatalf("failed to dial to broker: %+v", err)
 	}
 	brokerClient := proto.NewBrokerClient(brokerCC)
 
-	signalingCC, err := grpc.Dial("signaling:50502", grpc.WithInsecure())
+	signalingAddr := "signaling:50502"
+	if a := os.Getenv("SIGNALING_ADDR"); a != "" {
+		signalingAddr = a
+	}
+	signalingCC, err := grpc.Dial(signalingAddr, grpc.WithInsecure())
 	if err != nil {
 		log.Fatalf("failed to dial to signaling: %+v", err)
 	}
@@ -39,7 +49,11 @@ func main() {
 
 	agent := gameagent.NewAgent(brokerClient, signalingClient)
 	ctx := context.Background()
-	if err := agent.Run(ctx, gameServerName); err != nil {
+	tracks, err := gameagent.NewMediaTracks()
+	if err != nil {
+		log.Fatalf("failed to get media tracks: %+v", err)
+	}
+	if err := agent.Run(ctx, gameServerName, tracks); err != nil {
 		log.Fatalf("failed to run agent: %+v", err)
 	}
 }
@@ -71,4 +85,22 @@ func doHealth(agones *sdk.SDK) {
 			break
 		}
 	}
+}
+
+func newMediaSources() (videoSrc, audioSrc streamer.MediaStream, err error) {
+	if os.Getenv("USE_TEST_MEDIA_SOURCE") != "" {
+		videoSrc, err = streamer.NewVideoTestStream()
+		if err != nil {
+			return
+		}
+		audioSrc, err = streamer.NewAudioTestStream()
+		return
+	}
+
+	videoSrc, err = streamer.NewX11VideoStream(":0")
+	if err != nil {
+		return
+	}
+	audioSrc, err = streamer.NewPulseAudioStream("localhost:4713")
+	return
 }

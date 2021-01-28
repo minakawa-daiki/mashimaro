@@ -142,8 +142,10 @@ func TestSignaling(t *testing.T) {
 	bc := newInternalBrokerClient(t, store)
 	ic := newInternalSignalingClient(t, store, channels)
 	agent := gameagent.NewAgent(bc, ic)
+	mediaTracks, err := gameagent.NewMediaTracks()
+	assert.NoError(t, err)
 	go func() {
-		if err := agent.Run(ctx, gs.Name); err != nil {
+		if err := agent.Run(ctx, gs.Name, mediaTracks); err != nil {
 			log.Printf("failed to run agent: %+v", err)
 		}
 	}()

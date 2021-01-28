@@ -2,16 +2,20 @@ apiVersion: skaffold/v2beta10
 kind: Config
 build:
   artifacts:
+    - image: mashimaro/broker
+      context: .
+      docker:
+        dockerfile: services/broker/Dockerfile
     - image: mashimaro/signaling
       context: .
       docker:
-        dockerfile: docker/signaling/Dockerfile
+        dockerfile: services/signaling/Dockerfile
     - image: mashimaro/gameagent
       context: .
       docker:
-        dockerfile: docker/gameagent/Dockerfile
+        dockerfile: services/gaming/gameagent/Dockerfile
     - image: mashimaro/game
-      context: docker/game
+      context: services/gaming/game
       docker:
         dockerfile: Dockerfile
   local:
@@ -19,11 +23,17 @@ build:
 deploy:
   kubectl:
     manifests:
-      - k8s/signaling.yaml
-      - k8s/fleet.yaml
+      - services/fleet.yaml
+      - services/broker/broker.yaml
+      - services/signaling/signaling.yaml
 portForward:
+  - resourceType: Pod
+    resourceName: broker
+    namespace: mashimaro
+    port: 8081
+    localPort: 8081
   - resourceType: Pod
     resourceName: signaling
     namespace: mashimaro
-    port: 8080
-    localPort: 8080
+    port: 8082
+    localPort: 8082

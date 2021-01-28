@@ -5,7 +5,7 @@ COPY go.mod .
 COPY go.sum .
 RUN go mod download
 COPY . .
-RUN go build -o /bin/broker cmd/broker/main.go
+RUN go build -o /bin/broker services/broker/main.go
 
 FROM alpine
 WORKDIR /app

@@ -5,10 +5,10 @@ COPY go.mod .
 COPY go.sum .
 RUN go mod download
 COPY . .
-RUN go build -o /bin/signaling cmd/signaling/main.go
+RUN go build -o /bin/signaling services/signaling/main.go
 
 FROM alpine
 WORKDIR /app
 COPY --from=builder /bin/signaling /app/signaling
-COPY --from=builder /app/static /app/static
+COPY --from=builder /app/services/signaling/static /app/static
 ENTRYPOINT ["/app/signaling"]

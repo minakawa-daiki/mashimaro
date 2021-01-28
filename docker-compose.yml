@@ -3,41 +3,40 @@ services:
   broker:
     build:
       context: .
-      dockerfile: docker/broker/Dockerfile
+      dockerfile: services/broker/Dockerfile
     environment:
-      PORT: 50501
+      PORT: 8081
+      INTERNAL_PORT: 50501
   signaling:
     build:
       context: .
-      dockerfile: docker/signaling/Dockerfile
+      dockerfile: services/signaling/Dockerfile
     environment:
-      GAMESERVER_ADDR: "gameagent:50501"
-      PORT: 8080
-      GRPC_PORT: 50502
+      GAMESERVER_ADDR: "gameagent:12345"
+      PORT: 8082
+      INTERNAL_PORT: 50502
     ports:
-      - 8080:8080
+      - 8082:8082
   gameagent:
     build:
       context: .
-      dockerfile: docker/gameagent/Dockerfile
-  streamer:
-    build:
-      context: .
-      dockerfile: docker/streamer/Dockerfile
+      dockerfile: services/gaming/gameagent/Dockerfile
+    environment:
+      BROKER_ADDR: broker:50501
+      SIGNALING_ADDR: signaling:50502
     volumes:
       - x11socket:/tmp/.X11-unix/
   game:
     command: wine /microkiri/microkiri.exe
-    build: ./docker/game
+    build: ./services/gaming/game
     environment: 
-      PULSE_SERVER: gameagent:4713
+      PULSE_SERVER: localhost:4713
     security_opt:
       - seccomp:unconfined # to avoid clock_getres() failure with EPERM on i386 pulseaudio
     volumes:
       - ./game/microkiri:/microkiri
       - x11socket:/tmp/.X11-unix/
-    ports:
-      - 5900:5900 # VNC for debugging
+    network_mode: service:gameagent
 
 volumes:
   x11socket:

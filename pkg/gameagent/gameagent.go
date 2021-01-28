@@ -31,7 +31,7 @@ func NewAgent(brokerClient proto.BrokerClient, signalingClient proto.SignalingCl
 	return &Agent{brokerClient: brokerClient, signalingClient: signalingClient}
 }
 
-func (a *Agent) Run(ctx context.Context, gsName string) error {
+func (a *Agent) Run(ctx context.Context, gsName string, mediaTracks *MediaTracks) error {
 	ss, err := waitForSession(ctx, a.brokerClient, gsName)
 	if err != nil {
 		return err
@@ -48,14 +48,10 @@ func (a *Agent) Run(ctx context.Context, gsName string) error {
 	if err != nil {
 		return err
 	}
-	tracks, err := NewMediaTracks()
-	if err != nil {
+	if _, err := pcAnswer.AddTrack(mediaTracks.VideoTrack); err != nil {
 		return err
 	}
-	if _, err := pcAnswer.AddTrack(tracks.VideoTrack); err != nil {
-		return err
-	}
-	if _, err := pcAnswer.AddTrack(tracks.AudioTrack); err != nil {
+	if _, err := pcAnswer.AddTrack(mediaTracks.AudioTrack); err != nil {
 		return err
 	}
 
@@ -99,13 +95,13 @@ func (a *Agent) Run(ctx context.Context, gsName string) error {
 	log.Printf("[pcAnswer] connected to peer!")
 	ticker := time.NewTicker(1 * time.Second)
 	for range ticker.C {
-		if err := tracks.VideoTrack.WriteSample(media.Sample{
+		if err := mediaTracks.VideoTrack.WriteSample(media.Sample{
 			Data:     bytes.Repeat([]byte{0, 1, 2}, 100),
 			Duration: 1 * time.Second,
 		}); err != nil {
 			return err
 		}
-		if err := tracks.AudioTrack.WriteSample(media.Sample{
+		if err := mediaTracks.AudioTrack.WriteSample(media.Sample{
 			Data:     bytes.Repeat([]byte{0, 1, 2}, 100),
 			Duration: 1 * time.Second,
 		}); err != nil {
