@@ -1,14 +1,25 @@
 version: "3.6"
 services:
+  broker:
+    build:
+      context: .
+      dockerfile: docker/broker/Dockerfile
+    environment:
+      PORT: 50501
   signaling:
     build:
       context: .
       dockerfile: docker/signaling/Dockerfile
     environment:
-      GAMESERVER_ADDR: "streamer:50501"
+      GAMESERVER_ADDR: "gameagent:50501"
       PORT: 8080
+      GRPC_PORT: 50502
     ports:
       - 8080:8080
+  gameagent:
+    build:
+      context: .
+      dockerfile: docker/gameagent/Dockerfile
   streamer:
     build:
       context: .
@@ -19,7 +30,7 @@ services:
     command: wine /microkiri/microkiri.exe
     build: ./docker/game
     environment: 
-      PULSE_SERVER: streamer:4713
+      PULSE_SERVER: gameagent:4713
     security_opt:
       - seccomp:unconfined # to avoid clock_getres() failure with EPERM on i386 pulseaudio
     volumes:

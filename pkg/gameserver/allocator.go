@@ -1,4 +1,4 @@
-package gamesession
+package gameserver
 
 import (
 	"bytes"
@@ -16,11 +16,16 @@ type MockAllocator struct {
 	MockedGS *GameServer
 }
 
+func NewMockAllocator(mockedGS *GameServer) *MockAllocator {
+	return &MockAllocator{MockedGS: mockedGS}
+}
+
 func (a *MockAllocator) Allocate(ctx context.Context) (*GameServer, error) {
 	return a.MockedGS, nil
 }
 
 type GameServer struct {
+	Name string
 	Addr string
 }
 
@@ -34,7 +39,7 @@ type allocationRequest struct {
 }
 
 type allocationPort struct {
-	Name string `json:"streamer"`
+	Name string `json:"gameagent"`
 	Port int    `json:"port"`
 }
 
@@ -73,7 +78,10 @@ func (a *AgonesAllocator) Allocate(ctx context.Context) (*GameServer, error) {
 	if err := dec.Decode(&resp); err != nil {
 		return nil, err
 	}
-	return &GameServer{Addr: resp.Addr()}, nil
+	return &GameServer{
+		Name: resp.GameServerName,
+		Addr: resp.Addr(),
+	}, nil
 }
 
 func NewAgonesAllocator(addr, namespace string) *AgonesAllocator {

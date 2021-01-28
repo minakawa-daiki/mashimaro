@@ -29,8 +29,8 @@ make down
 ## Debugging on local (without Docker)
 
 ```sh
-# Start streamer
-USE_TEST_MEDIA_SOURCE=1 go run cmd/streamer/main.go
+# Start gameagent
+USE_TEST_MEDIA_SOURCE=1 go run cmd/gameagent/main.go
 
 # Start signaling server
 GAMESERVER_ADDR=localhost:50501 go run cmd/signaling/main.go
@@ -50,7 +50,7 @@ open vnc://localhost:5900
 ### Playing video on host
 
 ```sh
-# Run on 'streamer' container
+# Run on 'gameagent' container
 $ gst-launch-1.0 -v ximagesrc display-name=:0 remote=1 use-damage=0 ! videoconvert ! rtpvrawpay ! udpsink host=host.docker.internal port=9999
 
 # Run on host
@@ -62,7 +62,7 @@ $ gst-launch-1.0 -v udpsrc port=9999 caps="application/x-rtp, media=(string)vide
 Make sure a PulseAudio daemon set up on your host and is listening on TCP `:4713`.
 
 ```sh
-# Run on 'streamer' container
+# Run on 'gameagent' container
 $ gst-launch-1.0 -v pulsesrc server=localhost:4713 ! queue ! pulsesink server=host.docker.internal:4713
 ```
 

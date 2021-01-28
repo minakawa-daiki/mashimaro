@@ -4,6 +4,8 @@ go 1.13
 
 require (
 	agones.dev/agones v1.11.0
+	github.com/go-chi/chi v1.5.1
+	github.com/goccy/go-yaml v1.8.5
 	github.com/golang/protobuf v1.4.2
 	github.com/google/uuid v1.1.2
 	github.com/notedit/gst v0.0.7

@@ -4,20 +4,51 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"net"
 	"net/http"
 	"os"
 
+	"golang.org/x/sync/errgroup"
+
+	"github.com/castaneai/mashimaro/pkg/proto"
+	"google.golang.org/grpc"
+
 	"github.com/castaneai/mashimaro/pkg/gamesession"
+
 	"github.com/castaneai/mashimaro/pkg/signaling"
 )
 
 func main() {
-	allocator, err := newAllocator()
-	if err != nil {
-		log.Fatalf("failed to new allocator: %+v", err)
+	sessionStore := gamesession.NewInMemoryStore()
+	channels := signaling.NewChannels()
+	eg := &errgroup.Group{}
+	eg.Go(func() error {
+		return startInternalServer(sessionStore, channels)
+	})
+	eg.Go(func() error {
+		return startExternalServer(sessionStore, channels)
+	})
+	log.Fatal(eg.Wait())
+}
+
+func startInternalServer(store gamesession.Store, channels signaling.Channels) error {
+	sv := grpc.NewServer()
+	proto.RegisterSignalingServer(sv, signaling.NewInternalServer(store, channels))
+
+	addr := ":50502"
+	if p := os.Getenv("GRPC_PORT"); p != "" {
+		addr = fmt.Sprintf(":%s", p)
 	}
-	gsManager := gamesession.NewManager(allocator)
-	sv := signaling.NewServer(gsManager)
+	log.Printf("mashimaro internal signaling server is listening on %s...", addr)
+	lis, err := net.Listen("tcp", addr)
+	if err != nil {
+		return err
+	}
+	return sv.Serve(lis)
+}
+
+func startExternalServer(store gamesession.Store, channels signaling.Channels) error {
+	sv := signaling.NewExternalServer(store, channels)
 	http.Handle("/signal", sv.WebSocketHandler())
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -43,21 +74,11 @@ func main() {
 	if p := os.Getenv("PORT"); p != "" {
 		addr = fmt.Sprintf(":%s", p)
 	}
-	log.Printf("mashimaro signaling server is listening on %s...", addr)
-	log.Fatal(http.ListenAndServe(addr, nil))
+	log.Printf("mashimaro external signaling server is listening on %s...", addr)
+	return http.ListenAndServe(addr, nil)
 }
 
 func respondError(w http.ResponseWriter, err error) {
 	log.Printf("error: %+v", err)
 	http.Error(w, err.Error(), http.StatusInternalServerError)
-}
-
-func newAllocator() (gamesession.Allocator, error) {
-	if sa := os.Getenv("GAMESERVER_ADDR"); sa != "" {
-		return &gamesession.MockAllocator{MockedGS: &gamesession.GameServer{Addr: sa}}, nil
-	}
-
-	addr := "agones-allocator.agones-system.svc.cluster.local.:443"
-	// TODO: current namespace from k8s
-	return gamesession.NewAgonesAllocator(addr, "mashimaro"), nil
 }

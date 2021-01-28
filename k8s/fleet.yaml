@@ -9,16 +9,16 @@ spec:
     type: Recreate
   template:
     spec:
-      container: streamer
+      container: gameagent
       ports:
-        - name: streamer
+        - name: gameagent
           containerPort: 50501
           protocol: TCP
       template:
         spec:
           containers:
-            - name: streamer
-              image: mashimaro/streamer
+            - name: gameagent
+              image: mashimaro/gameagent
             - name: game
               image: mashimaro/game
               command: ["wine"]

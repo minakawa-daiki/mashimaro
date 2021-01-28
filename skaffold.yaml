@@ -6,10 +6,10 @@ build:
       context: .
       docker:
         dockerfile: docker/signaling/Dockerfile
-    - image: mashimaro/streamer
+    - image: mashimaro/gameagent
       context: .
       docker:
-        dockerfile: docker/streamer/Dockerfile
+        dockerfile: docker/gameagent/Dockerfile
     - image: mashimaro/game
       context: docker/game
       docker:
