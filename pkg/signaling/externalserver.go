@@ -3,7 +3,6 @@ package signaling
 import (
 	"context"
 	"errors"
-	"io"
 	"log"
 
 	"github.com/castaneai/mashimaro/pkg/gamesession"
@@ -43,9 +42,7 @@ func (s *ExternalServer) WebSocketHandler() websocket.Handler {
 		for {
 			var msg WSMessage
 			if err := websocket.JSON.Receive(ws, &msg); err != nil {
-				if err != io.EOF {
-					log.Printf("failed to receive json: %+v", err)
-				}
+				log.Printf("failed to receive json: %+v", err)
 				return
 			}
 			s.handleRequest(sessionCtx, ws, &msg)
@@ -57,7 +54,7 @@ func (s *ExternalServer) handleRequest(ctx context.Context, ws *websocket.Conn, 
 	sid := msg.SessionID
 	switch msg.Operation {
 	case OperationOffer:
-		ss, err := s.sessionStore.GetSession(ctx, sid)
+		_, err := s.sessionStore.GetSession(ctx, sid)
 		if errors.Is(err, gamesession.ErrSessionNotFound) {
 			log.Printf("session not found: %s", msg.SessionID)
 			return
@@ -66,10 +63,13 @@ func (s *ExternalServer) handleRequest(ctx context.Context, ws *websocket.Conn, 
 			log.Printf("failed to get session: %+v", err)
 			return
 		}
-		if ss.State != gamesession.StateWaitingForSession && ss.State != gamesession.StateSignaling {
-			log.Printf("cannot create duplicate offer")
-			return
-		}
+		// TODO: state check
+		/*
+			if ss.State != gamesession.StateWaitingForSession && ss.State != gamesession.StateSignaling {
+				log.Printf("cannot create duplicate offer")
+				return
+			}
+		*/
 		select {
 		case <-ctx.Done():
 			log.Printf("sending offer timed out")
@@ -98,6 +98,10 @@ func (s *ExternalServer) handleRequest(ctx context.Context, ws *websocket.Conn, 
 						Body:      answer,
 					}); err != nil {
 						log.Printf("failed to send via websocket: %+v", err)
+					}
+					if answer == "" {
+						log.Printf("finished gathering answer ICE candidates; stopped goroutine(signaling external answer -> offer)")
+						return
 					}
 				}
 			}

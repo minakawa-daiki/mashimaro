@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/castaneai/mashimaro/pkg/gameagent"
 
@@ -33,7 +34,7 @@ type externalSignalingClient struct {
 	answerCandidateCh chan *webrtc.ICECandidateInit
 }
 
-func newExternalSignalingClient(t *testing.T, store gamesession.Store, channels *signaling.Channels) *externalSignalingClient {
+func newExternalSignalingClient(t *testing.T, store gamesession.Store, channels *signaling.Channels, answerCandidateCh chan *webrtc.ICECandidateInit) *externalSignalingClient {
 	s := signaling.NewExternalServer(store, channels)
 	hs := httptest.NewServer(s.WebSocketHandler())
 	wsURL := strings.Replace(hs.URL, "http:", "ws:", 1)
@@ -43,7 +44,6 @@ func newExternalSignalingClient(t *testing.T, store gamesession.Store, channels 
 	}
 
 	answerCh := make(chan *webrtc.SessionDescription)
-	answerCandidateCh := make(chan *webrtc.ICECandidateInit)
 	go func() {
 		for {
 			var msg signaling.WSMessage
@@ -60,10 +60,14 @@ func newExternalSignalingClient(t *testing.T, store gamesession.Store, channels 
 				}
 				answerCh <- answer
 			case signaling.OperationICECandidate:
-				cand, err := webrtcutil.DecodeICECandidate(msg.Body)
-				if err != nil {
-					log.Printf("failed to decode ICE candidate: %+v", err)
-					return
+				var cand *webrtc.ICECandidateInit
+				if msg.Body != "" {
+					c, err := webrtcutil.DecodeICECandidate(msg.Body)
+					if err != nil {
+						log.Printf("failed to decode ICE candidate: %+v", err)
+						return
+					}
+					cand = c
 				}
 				answerCandidateCh <- cand
 			default:
@@ -100,10 +104,14 @@ func (c *externalSignalingClient) SendOffer(ctx context.Context, sid gamesession
 }
 
 func (c *externalSignalingClient) SendICECandidate(ctx context.Context, sid gamesession.SessionID, cand *webrtc.ICECandidate) {
-	candidateInit := cand.ToJSON()
-	body, err := webrtcutil.EncodeICECandidate(&candidateInit)
-	if err != nil {
-		panic(fmt.Sprintf("failed to encode ICE candidate: %+v", err))
+	body := ""
+	if cand != nil {
+		candidateInit := cand.ToJSON()
+		b, err := webrtcutil.EncodeICECandidate(&candidateInit)
+		if err != nil {
+			panic(fmt.Sprintf("failed to encode ICE candidate: %+v", err))
+		}
+		body = b
 	}
 	if err := websocket.JSON.Send(c.conn, &signaling.WSMessage{
 		Operation: signaling.OperationICECandidate,
@@ -171,22 +179,33 @@ func TestSignaling(t *testing.T) {
 		}
 	})
 
-	ec := newExternalSignalingClient(t, store, channels)
+	var pendingCandidates []webrtc.ICECandidateInit
+	var pendingMu sync.Mutex
+	answerCandidateCh := make(chan *webrtc.ICECandidateInit, 10)
+	go func() {
+		for candidate := range answerCandidateCh {
+			if candidate == nil {
+				break
+			}
+			if pcOffer.RemoteDescription() != nil {
+				pcOffer.AddICECandidate(*candidate)
+			} else {
+				pendingMu.Lock()
+				pendingCandidates = append(pendingCandidates, *candidate)
+				pendingMu.Unlock()
+			}
+		}
+	}()
+	ec := newExternalSignalingClient(t, store, channels, answerCandidateCh)
 
-	pendingCandidateCh := make(chan webrtc.ICECandidateInit, 10)
 	pcOffer.OnICECandidate(func(candidate *webrtc.ICECandidate) {
 		log.Printf("[pcOffer] new ICE candidate: %v", candidate)
-		if candidate == nil {
-			close(pendingCandidateCh)
-			return
-		}
 		ec.SendICECandidate(ctx, sid, candidate)
 	})
 
 	videoTrackCh := make(chan *webrtc.TrackRemote)
 	audioTrackCh := make(chan *webrtc.TrackRemote)
 	pcOffer.OnTrack(func(remote *webrtc.TrackRemote, receiver *webrtc.RTPReceiver) {
-		log.Printf("on track: %+v", remote)
 		switch remote.Kind() {
 		case webrtc.RTPCodecTypeAudio:
 			audioTrackCh <- remote
@@ -198,19 +217,27 @@ func TestSignaling(t *testing.T) {
 	offer, err := pcOffer.CreateOffer(nil)
 	assert.NoError(t, err)
 	assert.NoError(t, pcOffer.SetLocalDescription(offer))
-	answer := ec.SendOffer(ctx, sid, &offer)
+
+	answerCtx, cancel := context.WithTimeout(ctx, 5*time.Hour)
+	defer cancel()
+	answer := ec.SendOffer(answerCtx, sid, &offer)
 	assert.NoError(t, pcOffer.SetRemoteDescription(*answer))
 	log.Printf("[pcOffer] got answer")
-	log.Printf("%s", answer.SDP)
-	for candidate := range pendingCandidateCh {
-		assert.NoError(t, pcOffer.AddICECandidate(candidate))
-	}
+	(func() {
+		pendingMu.Lock()
+		defer pendingMu.Unlock()
+		for _, candidate := range pendingCandidates {
+			if err := pcOffer.AddICECandidate(candidate); err != nil {
+				log.Printf("failed to add ICE candidate: %+v", err)
+			}
+		}
+	})()
+
 	videoTrack := <-videoTrackCh
 	audioTrack := <-audioTrackCh
 	assert.Equal(t, "mashimaro", videoTrack.StreamID())
 	assert.Equal(t, "mashimaro", audioTrack.StreamID())
 
 	<-connected
-
 	assert.NoError(t, pcOffer.Close())
 }

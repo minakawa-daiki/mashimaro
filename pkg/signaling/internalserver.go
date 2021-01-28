@@ -82,6 +82,10 @@ func (s *internalServer) TrickleSignaling(stream proto.Signaling_TrickleSignalin
 				}); err != nil {
 					log.Printf("failed to send offer candidate: %+v", err)
 				}
+				if body == "" {
+					log.Printf("finished gathering offer ICE candidates; stopped goroutine(signaling internal offer -> answer)")
+					return
+				}
 			}
 		}
 	}()
@@ -100,6 +104,9 @@ func (s *internalServer) TrickleSignaling(stream proto.Signaling_TrickleSignalin
 		case <-stream.Context().Done():
 			break
 		case s.channels.AnswerCandidateCh(sid) <- req.Candidate.Body:
+			if req.Candidate.Body == "" {
+				log.Printf("finished gathering answer ICE candidates(signaling internal answer -> offer)")
+			}
 		}
 	}
 	return nil

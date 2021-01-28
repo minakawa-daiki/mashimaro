@@ -73,7 +73,11 @@ func (a *Agent) Run(ctx context.Context, gsName string) error {
 		}
 	})
 
-	answer, err := startSignaling(ctx, sid, a.signalingClient, pcAnswer, offer)
+	remoteFound := make(chan struct{})
+	if err := startTrickleICE(ctx, sid, a.signalingClient, pcAnswer, remoteFound); err != nil {
+		return err
+	}
+	answer, err := createAnswer(ctx, pcAnswer, offer, remoteFound)
 	if err != nil {
 		return err
 	}
@@ -87,12 +91,12 @@ func (a *Agent) Run(ctx context.Context, gsName string) error {
 	}); err != nil {
 		return err
 	}
-	log.Printf("[agent] sent answer")
+	log.Printf("[pcAnswer] sent answer")
 
 	// TODO: wait for provisioning game
 
 	<-connected
-	log.Printf("[agent] connected to peer!")
+	log.Printf("[pcAnswer] connected to peer!")
 	ticker := time.NewTicker(1 * time.Second)
 	for range ticker.C {
 		if err := tracks.VideoTrack.WriteSample(media.Sample{
@@ -147,7 +151,7 @@ func waitForOffer(ctx context.Context, c proto.SignalingClient, sid gamesession.
 				return nil, err
 			}
 			if resp.Found {
-				log.Printf("received offer")
+				log.Printf("[agent] received offer")
 				return webrtcutil.DecodeSDP(resp.Offer.Body)
 			}
 		}

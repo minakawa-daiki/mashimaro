@@ -51,7 +51,7 @@ type allocationResponse struct {
 
 func (r *allocationResponse) Addr() string {
 	if len(r.Ports) < 1 {
-		return fmt.Sprintf("%s:<NO_PORT_FOUND_IN_ALLOCATED_GAMESERVER>")
+		return fmt.Sprintf("%s:<NO_PORT_FOUND_IN_ALLOCATED_GAMESERVER>", r.Address)
 	}
 	return fmt.Sprintf("%s:%d", r.Address, r.Ports[0].Port)
 }

@@ -6,6 +6,10 @@ import (
 	"github.com/castaneai/mashimaro/pkg/gamesession"
 )
 
+const (
+	channelBuffer = 10
+)
+
 // For communication between external server and internal server
 type Channels struct {
 	offerChs           map[gamesession.SessionID]chan string
@@ -20,7 +24,7 @@ func (c *Channels) getOrCreateCh(m map[gamesession.SessionID]chan string, sid ga
 	defer c.mu.Unlock()
 	ch, ok := m[sid]
 	if !ok {
-		ch = make(chan string)
+		ch = make(chan string, channelBuffer)
 		m[sid] = ch
 	}
 	return ch

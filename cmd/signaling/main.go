@@ -31,7 +31,7 @@ func main() {
 	log.Fatal(eg.Wait())
 }
 
-func startInternalServer(store gamesession.Store, channels signaling.Channels) error {
+func startInternalServer(store gamesession.Store, channels *signaling.Channels) error {
 	sv := grpc.NewServer()
 	proto.RegisterSignalingServer(sv, signaling.NewInternalServer(store, channels))
 
@@ -47,7 +47,7 @@ func startInternalServer(store gamesession.Store, channels signaling.Channels) e
 	return sv.Serve(lis)
 }
 
-func startExternalServer(store gamesession.Store, channels signaling.Channels) error {
+func startExternalServer(store gamesession.Store, channels *signaling.Channels) error {
 	sv := signaling.NewExternalServer(store, channels)
 	http.Handle("/signal", sv.WebSocketHandler())
 
