@@ -6,5 +6,5 @@ RUN go get github.com/OpenAyame/ayame
 FROM alpine
 WORKDIR /app
 COPY --from=builder /go/bin/ayame /app/ayame
-COPY ./ayame.yaml /app/ayame.yaml
+COPY ./ayame_config.yaml /app/ayame.yaml
 ENTRYPOINT ["/app/ayame"]

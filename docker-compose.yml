@@ -11,23 +11,13 @@ services:
     build: ./services/ayame
     ports:
     - 3000:3000
-  signaling:
-    build:
-      context: .
-      dockerfile: services/signaling/Dockerfile
-    environment:
-      GAMESERVER_ADDR: "gameagent:12345"
-      PORT: 8082
-      INTERNAL_PORT: 50502
-    ports:
-      - 8082:8082
   gameagent:
     build:
       context: .
       dockerfile: services/gaming/gameagent/Dockerfile
     environment:
       BROKER_ADDR: broker:50501
-      SIGNALING_ADDR: signaling:50502
+      AYAME_URL: ws://ayame:3000/signaling
     volumes:
       - x11socket:/tmp/.X11-unix/
   game:

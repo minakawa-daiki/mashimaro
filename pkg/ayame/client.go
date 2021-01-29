@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"log"
+	"sync"
 
 	"github.com/pion/webrtc/v3"
 
@@ -15,15 +16,57 @@ type Client struct {
 	pc   *webrtc.PeerConnection
 	rid  string
 	cid  string
+	opts *opts
+
+	onConnect  func()
+	callbackMu sync.Mutex
 }
 
-func NewClient() *Client {
-	return &Client{}
+type opts struct {
+	initPeerConnection func(pc *webrtc.PeerConnection) error
+}
+
+func defaultOptions() *opts {
+	return &opts{
+		initPeerConnection: nil,
+	}
+}
+
+type ClientOption interface {
+	apply(opts *opts)
+}
+
+type ClientOptionFunc func(*opts)
+
+func (f ClientOptionFunc) apply(opts *opts) {
+	f(opts)
+}
+
+func WithInitPeerConnection(f func(pc *webrtc.PeerConnection) error) ClientOption {
+	return ClientOptionFunc(func(o *opts) {
+		o.initPeerConnection = f
+	})
+}
+
+func NewClient(options ...ClientOption) *Client {
+	opts := defaultOptions()
+	for _, opt := range options {
+		opt.apply(opts)
+	}
+	return &Client{
+		opts: opts,
+	}
 }
 
 type ConnectRequest struct {
 	RoomID   string
 	ClientID string
+}
+
+func (c *Client) OnConnect(f func()) {
+	c.callbackMu.Lock()
+	defer c.callbackMu.Unlock()
+	c.onConnect = f
 }
 
 func (c *Client) Connect(ctx context.Context, url_ string, req *ConnectRequest) error {
@@ -35,8 +78,8 @@ func (c *Client) signaling(ctx context.Context, url_ string, req *ConnectRequest
 	if err != nil {
 		return err
 	}
-	go c.recv(ctx)
 	c.conn = conn
+	go c.recv(ctx)
 	if err := c.sendRegisterMessage(req); err != nil {
 		return err
 	}
@@ -73,7 +116,7 @@ func (c *Client) handleMessage(msg *receivedMessage) {
 			log.Printf("failed to unmarshal json: %+v", err)
 			return
 		}
-		log.Printf("accepted! %+v", acc)
+		log.Printf("[%s] accepted(room: %s)", c.cid, c.rid)
 		if err := c.createPeerConnection(); err != nil {
 			log.Printf("failed to create peer connection: %+v", err)
 			return
@@ -84,6 +127,13 @@ func (c *Client) handleMessage(msg *receivedMessage) {
 				return
 			}
 		}
+	case "reject":
+		var rej rejectMessage
+		if err := json.Unmarshal(msg.Payload, &rej); err != nil {
+			log.Printf("failed to unmarshal json: %+v", err)
+			return
+		}
+		log.Printf("rejected (reason: %s)", rej.Reason)
 	case "offer":
 		log.Printf("[%s] offer received", c.cid)
 		var sdp webrtc.SessionDescription
@@ -121,8 +171,6 @@ func (c *Client) handleMessage(msg *receivedMessage) {
 				log.Printf("failed to add ice candidate: %+v", err)
 				return
 			}
-		} else {
-			log.Printf("[%s] received nil candidate", c.cid)
 		}
 	default:
 		log.Printf("unknown type received: %s", msg.Type)
@@ -148,6 +196,13 @@ func (c *Client) createPeerConnection() error {
 	}
 	pc.OnICEConnectionStateChange(func(state webrtc.ICEConnectionState) {
 		log.Printf("[%s] connection state has changed: %s", c.cid, state)
+		if state == webrtc.ICEConnectionStateConnected {
+			c.callbackMu.Lock()
+			defer c.callbackMu.Unlock()
+			if c.onConnect != nil {
+				c.onConnect()
+			}
+		}
 	})
 	pc.OnICECandidate(func(candidate *webrtc.ICECandidate) {
 		var ice *webrtc.ICECandidateInit
@@ -166,6 +221,11 @@ func (c *Client) createPeerConnection() error {
 	if _, err := pc.AddTransceiverFromKind(webrtc.RTPCodecTypeAudio, webrtc.RTPTransceiverInit{Direction: webrtc.RTPTransceiverDirectionRecvonly}); err != nil {
 		return err
 	}
+	if c.opts.initPeerConnection != nil {
+		if err := c.opts.initPeerConnection(pc); err != nil {
+			return err
+		}
+	}
 	c.pc = pc
 	return nil
 }
@@ -181,6 +241,7 @@ func (c *Client) sendOffer() error {
 	if err := websocket.JSON.Send(c.conn, c.pc.LocalDescription()); err != nil {
 		return err
 	}
+	log.Printf("[%s] offer sent", c.cid)
 	return nil
 }
 
@@ -195,5 +256,6 @@ func (c *Client) sendAnswer() error {
 	if err := websocket.JSON.Send(c.conn, c.pc.LocalDescription()); err != nil {
 		return err
 	}
+	log.Printf("[%s] answer sent", c.cid)
 	return nil
 }

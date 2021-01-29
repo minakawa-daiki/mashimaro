@@ -31,18 +31,6 @@ make down
 ```sh
 # Start gameagent
 USE_TEST_MEDIA_SOURCE=1 go run cmd/gameagent/main.go
-
-# Start signaling server
-GAMESERVER_ADDR=localhost:50501 go run cmd/signaling/main.go
-
-# Open web client
-open http://localhost:8080
-```
-
-## Debugging with VNC
-
-```sh
-open vnc://localhost:5900
 ```
 
 ## Debugging video and audio

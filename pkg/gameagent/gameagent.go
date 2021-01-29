@@ -3,16 +3,14 @@ package gameagent
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"log"
-	"sync"
 	"time"
+
+	"github.com/castaneai/mashimaro/pkg/ayame"
 
 	"github.com/pion/webrtc/v3/pkg/media"
 
 	"github.com/castaneai/mashimaro/pkg/gamesession"
-
-	"github.com/castaneai/mashimaro/pkg/webrtcutil"
 
 	"github.com/pion/webrtc/v3"
 
@@ -24,11 +22,15 @@ import (
 
 type Agent struct {
 	brokerClient    proto.BrokerClient
-	signalingClient proto.SignalingClient
+	signalingConfig *SignalingConfig
 }
 
-func NewAgent(brokerClient proto.BrokerClient, signalingClient proto.SignalingClient) *Agent {
-	return &Agent{brokerClient: brokerClient, signalingClient: signalingClient}
+type SignalingConfig struct {
+	AyameURL string
+}
+
+func NewAgent(brokerClient proto.BrokerClient, sc *SignalingConfig) *Agent {
+	return &Agent{brokerClient: brokerClient, signalingConfig: sc}
 }
 
 func (a *Agent) Run(ctx context.Context, gsName string, mediaTracks *MediaTracks) error {
@@ -40,59 +42,26 @@ func (a *Agent) Run(ctx context.Context, gsName string, mediaTracks *MediaTracks
 
 	// TODO: provisioning game data and ready to start process
 
-	offer, err := waitForOffer(ctx, a.signalingClient, gamesession.SessionID(ss.SessionId))
-	if err != nil {
-		return err
-	}
-	pcAnswer, err := newPeerConnection()
-	if err != nil {
-		return err
-	}
-	if _, err := pcAnswer.AddTrack(mediaTracks.VideoTrack); err != nil {
-		return err
-	}
-	if _, err := pcAnswer.AddTrack(mediaTracks.AudioTrack); err != nil {
-		return err
-	}
-
-	once := &sync.Once{}
-	connected := make(chan struct{})
-	pcAnswer.OnConnectionStateChange(func(state webrtc.PeerConnectionState) {
-		log.Printf("[pcAnswer] connection state has changed: %s", state)
-		switch state {
-		case webrtc.PeerConnectionStateConnected:
-			once.Do(func() {
-				close(connected)
-			})
-		case webrtc.PeerConnectionStateDisconnected:
-			// TODO:
+	ayamec := ayame.NewClient(ayame.WithInitPeerConnection(func(pc *webrtc.PeerConnection) error {
+		if _, err := pc.AddTrack(mediaTracks.VideoTrack); err != nil {
+			return err
 		}
+		if _, err := pc.AddTrack(mediaTracks.AudioTrack); err != nil {
+			return err
+		}
+		return nil
+	}))
+
+	connected := make(chan struct{})
+	ayamec.OnConnect(func() {
+		close(connected)
 	})
-
-	remoteFound := make(chan struct{})
-	if err := startTrickleICE(ctx, sid, a.signalingClient, pcAnswer, remoteFound); err != nil {
+	if err := ayamec.Connect(ctx, a.signalingConfig.AyameURL, &ayame.ConnectRequest{RoomID: string(sid), ClientID: "streamer"}); err != nil {
 		return err
 	}
-	answer, err := createAnswer(ctx, pcAnswer, offer, remoteFound)
-	if err != nil {
-		return err
-	}
-	answerBody, err := webrtcutil.EncodeSDP(answer)
-	if err != nil {
-		return fmt.Errorf("faield to encode answer SDP: %+v", err)
-	}
-	if _, err := a.signalingClient.SendSignalingAnswer(ctx, &proto.SendSignalingAnswerRequest{
-		SessionId:       ss.SessionId,
-		SignalingAnswer: &proto.SignalingAnswer{Body: answerBody},
-	}); err != nil {
-		return err
-	}
-	log.Printf("[pcAnswer] sent answer")
-
-	// TODO: wait for provisioning game
-
 	<-connected
-	log.Printf("[pcAnswer] connected to peer!")
+
+	log.Printf("[agent] connected!")
 	ticker := time.NewTicker(1 * time.Second)
 	for range ticker.C {
 		if err := mediaTracks.VideoTrack.WriteSample(media.Sample{
@@ -131,25 +100,6 @@ func waitForSession(ctx context.Context, c proto.BrokerClient, gsName string) (*
 			}
 			log.Printf("found session(sid: %s, gameId: %s)", resp.Session.SessionId, metadata.GameID)
 			return resp.Session, nil
-		}
-	}
-}
-
-func waitForOffer(ctx context.Context, c proto.SignalingClient, sid gamesession.SessionID) (*webrtc.SessionDescription, error) {
-	ticker := time.NewTicker(1 * time.Second)
-	for {
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		case <-ticker.C:
-			resp, err := c.ReceiveSignalingOffer(ctx, &proto.ReceiveSignalingOfferRequest{SessionId: string(sid)})
-			if err != nil {
-				return nil, err
-			}
-			if resp.Found {
-				log.Printf("[agent] received offer")
-				return webrtcutil.DecodeSDP(resp.Offer.Body)
-			}
 		}
 	}
 }

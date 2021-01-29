@@ -26,4 +26,5 @@ generate:
 	docker run --rm -v $(shell pwd):/app -w /app znly/protoc -I. --go_out=plugins=grpc:./pkg ./proto/*.proto
 
 test:
+	docker-compose up -d ayame
 	go test -v -race -count=1 ./...

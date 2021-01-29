@@ -38,10 +38,9 @@ type acceptMessage struct {
 	IsExistClient bool   `json:"isExistClient"`
 }
 
-// offer/answer
-type sdpMessage struct {
-	Type string `json:"type"`
-	SDP  string `json:"sdp"`
+type rejectMessage struct {
+	Type   string `json:"type"`
+	Reason string `json:"reason"`
 }
 
 type candidateMessage struct {

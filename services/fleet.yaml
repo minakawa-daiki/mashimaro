@@ -19,6 +19,9 @@ spec:
           containers:
             - name: gameagent
               image: mashimaro/gameagent
+              env:
+                - name: AYAME_URL
+                  value: ws://ayame.mashimaro.svc.cluster.local.:3000./signal"
             - name: game
               image: mashimaro/game
               command: ["wine"]

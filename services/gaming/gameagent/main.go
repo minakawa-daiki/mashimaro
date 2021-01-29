@@ -37,17 +37,14 @@ func main() {
 	}
 	brokerClient := proto.NewBrokerClient(brokerCC)
 
-	signalingAddr := "signaling:50502"
-	if a := os.Getenv("SIGNALING_ADDR"); a != "" {
-		signalingAddr = a
+	ayameURL := "ws://ayame:3000/signaling"
+	if a := os.Getenv("AYAME_URL"); a != "" {
+		ayameURL = a
 	}
-	signalingCC, err := grpc.Dial(signalingAddr, grpc.WithInsecure())
-	if err != nil {
-		log.Fatalf("failed to dial to signaling: %+v", err)
+	signalingConfig := &gameagent.SignalingConfig{
+		AyameURL: ayameURL,
 	}
-	signalingClient := proto.NewSignalingClient(signalingCC)
-
-	agent := gameagent.NewAgent(brokerClient, signalingClient)
+	agent := gameagent.NewAgent(brokerClient, signalingConfig)
 	ctx := context.Background()
 	tracks, err := gameagent.NewMediaTracks()
 	if err != nil {

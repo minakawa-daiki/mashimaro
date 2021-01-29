@@ -6,22 +6,12 @@ Package proto is a generated protocol buffer package.
 
 It is generated from these files:
 	proto/broker.proto
-	proto/signaling.proto
 
 It has these top-level messages:
 	FindSessionRequest
 	FindSessionResponse
 	Session
 	GameMetadata
-	ReceiveSignalingOfferRequest
-	ReceiveSignalingOfferResponse
-	SendSignalingAnswerRequest
-	SendSignalingAnswerResponse
-	SignalingOffer
-	SignalingAnswer
-	TrickleSignalingRequest
-	TrickleSignalingResponse
-	ICECandidate
 */
 package proto
 
