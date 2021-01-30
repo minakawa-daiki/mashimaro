@@ -1,0 +1,17 @@
+---
+kind: Pod
+apiVersion: v1
+metadata:
+  name: ayame
+  namespace: mashimaro
+  labels:
+    component: ayame
+spec:
+  containers:
+    - name: ayame
+      image: mashimaro/ayame
+      imagePullPolicy: IfNotPresent
+      ports:
+        - name: websocket
+          containerPort: 3000
+---

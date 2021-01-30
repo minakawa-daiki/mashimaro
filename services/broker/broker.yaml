@@ -1,0 +1,22 @@
+---
+kind: Pod
+apiVersion: v1
+metadata:
+  name: broker
+  namespace: mashimaro
+  labels:
+    component: broker
+spec:
+  containers:
+    - name: broker
+      image: mashimaro/broker
+      imagePullPolicy: IfNotPresent
+      ports:
+        - name: http
+          containerPort: 8081
+      env:
+        - name: PORT
+          value: "8081"
+        - name: INTERNAL_PORT
+          value: "50501"
+---

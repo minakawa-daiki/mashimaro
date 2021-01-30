@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+option go_package = "proto";
+
+service Broker {
+  rpc FindSession(FindSessionRequest) returns (FindSessionResponse) {}
+}
+
+message FindSessionRequest {
+  string gameserver_name = 1;
+}
+
+message FindSessionResponse {
+  bool found = 1;
+  Session session = 2;
+}
+
+message Session {
+  string session_id = 1;
+  GameMetadata game_metadata = 2;
+}
+
+message GameMetadata {
+  string body = 1;
+}

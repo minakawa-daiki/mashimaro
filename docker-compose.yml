@@ -1,31 +1,39 @@
 version: "3.6"
 services:
-  signaling:
+  broker:
     build:
       context: .
-      dockerfile: docker/signaling/Dockerfile
+      dockerfile: services/broker/Dockerfile
     environment:
-      PORT: 8080
+      PORT: 8081
+      INTERNAL_PORT: 50501
+  ayame:
+    build: ./services/ayame
     ports:
-      - 8080:8080
-  streamer:
+    - 3000:3000
+  gameagent:
     build:
       context: .
-      dockerfile: docker/streamer/Dockerfile
+      dockerfile: services/gaming/gameagent/Dockerfile
+    environment:
+      BROKER_ADDR: broker:50501
+      AYAME_URL: ws://ayame:3000/signaling
+      GAMEWRAPPER_ADDR: localhost:50501
     volumes:
       - x11socket:/tmp/.X11-unix/
   game:
-    command: wine /microkiri/microkiri.exe
-    build: ./docker/game
-    environment: 
-      PULSE_SERVER: streamer:4713
+    build:
+      context: .
+      dockerfile: services/gaming/game/Dockerfile
+    environment:
+      PORT: 50051
+      PULSE_SERVER: localhost:4713
     security_opt:
       - seccomp:unconfined # to avoid clock_getres() failure with EPERM on i386 pulseaudio
     volumes:
       - ./game/microkiri:/microkiri
       - x11socket:/tmp/.X11-unix/
-    ports:
-      - 5900:5900 # VNC for debugging
+    network_mode: service:gameagent
 
 volumes:
   x11socket:

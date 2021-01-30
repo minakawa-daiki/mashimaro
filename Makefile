@@ -1,18 +1,30 @@
-build:
-	docker-compose build
+MINIKUBE_PROFILE := mashimaro
 
 up:
-	docker-compose up -d
+	minikube start -p $(MINIKUBE_PROFILE) --kubernetes-version v1.17.13
+	minikube profile $(MINIKUBE_PROFILE)
+	minikube kubectl -- apply -f services/namespace.yaml # You need to create your namespaces before installing Agones.
+	helm repo add agones https://agones.dev/chart/stable
+	helm repo update
+	helm upgrade --install agones  --namespace agones-system --create-namespace \
+		--set "gameservers.namespaces={mashimaro}" \
+		--set "agones.allocator.generateTLS=false" \
+		--set "agones.allocator.disableMTLS=true" \
+		--set "agones.allocator.disableTLS=true" \
+		agones/agones
+
+run:
+	skaffold run --minikube-profile=$(MINIKUBE_PROFILE) --port-forward --tail
 
 down:
-	docker-compose down
-	docker volume rm mashimaro_x11socket
+	minikube stop -p $(MINIKUBE_PROFILE)
 
-bash:
-	docker-compose exec streamer bash
+delete:
+	minikube delete -p $(MINIKUBE_PROFILE)
 
 generate:
 	docker run --rm -v $(shell pwd):/app -w /app znly/protoc -I. --go_out=plugins=grpc:./pkg ./proto/*.proto
 
 test:
-	go test -race -count=1 ./...
+	docker-compose up -d ayame
+	go test -v -race -count=1 ./...

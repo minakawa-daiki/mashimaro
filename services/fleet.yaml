@@ -1,0 +1,28 @@
+apiVersion: "agones.dev/v1"
+kind: Fleet
+metadata:
+  name: mashimaro-fleet
+  namespace: mashimaro
+spec:
+  replicas: 2
+  strategy:
+    type: Recreate
+  template:
+    spec:
+      container: gameagent
+      ports:
+        - name: dummy
+          containerPort: 12345
+          protocol: TCP
+      template:
+        spec:
+          containers:
+            - name: gameagent
+              image: mashimaro/gameagent
+              env:
+                - name: AYAME_URL
+                  value: ws://ayame.mashimaro.svc.cluster.local.:3000./signal"
+            - name: game
+              image: mashimaro/game
+              command: ["wine"]
+              args: ["/microkiri/microkiri.exe"]
