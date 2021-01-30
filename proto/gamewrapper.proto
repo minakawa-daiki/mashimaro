@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+option go_package = "proto";
+
+service GameWrapper {
+  rpc StartGame(StartGameRequest) returns (StartGameResponse) {}
+}
+
+message StartGameRequest {
+  string command = 1;
+  repeated string args = 2;
+  string working_directory = 3;
+}
+
+message StartGameResponse {
+
+}

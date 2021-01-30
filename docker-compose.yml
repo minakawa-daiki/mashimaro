@@ -18,12 +18,15 @@ services:
     environment:
       BROKER_ADDR: broker:50501
       AYAME_URL: ws://ayame:3000/signaling
+      GAMEWRAPPER_ADDR: localhost:50501
     volumes:
       - x11socket:/tmp/.X11-unix/
   game:
-    command: wine /microkiri/microkiri.exe
-    build: ./services/gaming/game
-    environment: 
+    build:
+      context: .
+      dockerfile: services/gaming/game/Dockerfile
+    environment:
+      PORT: 50051
       PULSE_SERVER: localhost:4713
     security_opt:
       - seccomp:unconfined # to avoid clock_getres() failure with EPERM on i386 pulseaudio

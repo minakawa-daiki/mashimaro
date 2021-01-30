@@ -1,14 +1,19 @@
 package gameagent
 
 import (
-	"bytes"
 	"context"
+	"fmt"
 	"log"
+	"strings"
 	"time"
 
-	"github.com/castaneai/mashimaro/pkg/ayame"
+	"github.com/castaneai/mashimaro/pkg/streamer"
 
 	"github.com/pion/webrtc/v3/pkg/media"
+
+	"golang.org/x/sync/errgroup"
+
+	"github.com/castaneai/mashimaro/pkg/ayame"
 
 	"github.com/castaneai/mashimaro/pkg/gamesession"
 
@@ -21,16 +26,21 @@ import (
 )
 
 type Agent struct {
-	brokerClient    proto.BrokerClient
-	signalingConfig *SignalingConfig
+	brokerClient      proto.BrokerClient
+	gameWrapperClient proto.GameWrapperClient
+	signalingConfig   *SignalingConfig
 }
 
 type SignalingConfig struct {
 	AyameURL string
 }
 
-func NewAgent(brokerClient proto.BrokerClient, sc *SignalingConfig) *Agent {
-	return &Agent{brokerClient: brokerClient, signalingConfig: sc}
+func NewAgent(brokerClient proto.BrokerClient, gameWrapperClient proto.GameWrapperClient, sc *SignalingConfig) *Agent {
+	return &Agent{
+		brokerClient:      brokerClient,
+		gameWrapperClient: gameWrapperClient,
+		signalingConfig:   sc,
+	}
 }
 
 func (a *Agent) Run(ctx context.Context, gsName string, mediaTracks *MediaTracks) error {
@@ -39,6 +49,11 @@ func (a *Agent) Run(ctx context.Context, gsName string, mediaTracks *MediaTracks
 		return err
 	}
 	sid := gamesession.SessionID(ss.SessionId)
+	var metadata game.Metadata
+	if err := yaml.Unmarshal([]byte(ss.GameMetadata.Body), &metadata); err != nil {
+		return err
+	}
+	log.Printf("[agent] load metadata: %+v", metadata)
 
 	// TODO: provisioning game data and ready to start process
 
@@ -62,23 +77,32 @@ func (a *Agent) Run(ctx context.Context, gsName string, mediaTracks *MediaTracks
 	<-connected
 
 	log.Printf("[agent] connected!")
-	ticker := time.NewTicker(1 * time.Second)
-	for range ticker.C {
-		if err := mediaTracks.VideoTrack.WriteSample(media.Sample{
-			Data:     bytes.Repeat([]byte{0, 1, 2}, 100),
-			Duration: 1 * time.Second,
-		}); err != nil {
-			return err
-		}
-		if err := mediaTracks.AudioTrack.WriteSample(media.Sample{
-			Data:     bytes.Repeat([]byte{0, 1, 2}, 100),
-			Duration: 1 * time.Second,
-		}); err != nil {
-			return err
-		}
+
+	cmds := strings.Split(metadata.Command, " ")
+	var args []string
+	if len(cmds) > 1 {
+		args = cmds[1:]
+	}
+	if _, err := a.gameWrapperClient.StartGame(ctx, &proto.StartGameRequest{
+		Command: cmds[0],
+		Args:    args,
+	}); err != nil {
+		return err
 	}
 
-	return nil
+	videoStream, audioStream, err := getMediaStreams()
+	if err != nil {
+		return err
+	}
+
+	eg := &errgroup.Group{}
+	eg.Go(func() error {
+		return startStreamingMedia(ctx, mediaTracks.VideoTrack, videoStream)
+	})
+	eg.Go(func() error {
+		return startStreamingMedia(ctx, mediaTracks.AudioTrack, audioStream)
+	})
+	return eg.Wait()
 }
 
 func waitForSession(ctx context.Context, c proto.BrokerClient, gsName string) (*proto.Session, error) {
@@ -100,6 +124,26 @@ func waitForSession(ctx context.Context, c proto.BrokerClient, gsName string) (*
 			}
 			log.Printf("found session(sid: %s, gameId: %s)", resp.Session.SessionId, metadata.GameID)
 			return resp.Session, nil
+		}
+	}
+}
+
+func startStreamingMedia(ctx context.Context, track *webrtc.TrackLocalStaticSample, stream streamer.MediaStream) error {
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+			chunk, err := stream.ReadChunk()
+			if err != nil {
+				return fmt.Errorf("failed to read chunk from stream: %+v", err)
+			}
+			if err := track.WriteSample(media.Sample{
+				Data:     chunk.Data,
+				Duration: chunk.Duration,
+			}); err != nil {
+				return fmt.Errorf("failed to write sample to track: %+v", err)
+			}
 		}
 	}
 }

@@ -8,6 +8,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/castaneai/mashimaro/pkg/testutils"
+
 	"github.com/stretchr/testify/assert"
 
 	"github.com/castaneai/mashimaro/pkg/gameserver"
@@ -46,7 +48,7 @@ func (ts *externalBrokerClient) NewGame(gameID string) (gamesession.SessionID, e
 }
 
 func newInternalBrokerClient(t *testing.T, store gamesession.Store) proto.BrokerClient {
-	lis := listenTCPWithRandomPort(t)
+	lis := testutils.ListenTCPWithRandomPort(t)
 	s := grpc.NewServer()
 	proto.RegisterBrokerServer(s, broker.NewInternalServer(store))
 	go s.Serve(lis)

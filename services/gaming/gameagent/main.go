@@ -6,8 +6,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/castaneai/mashimaro/pkg/streamer"
-
 	"github.com/castaneai/mashimaro/pkg/proto"
 	"google.golang.org/grpc"
 
@@ -82,22 +80,4 @@ func doHealth(agones *sdk.SDK) {
 			break
 		}
 	}
-}
-
-func newMediaSources() (videoSrc, audioSrc streamer.MediaStream, err error) {
-	if os.Getenv("USE_TEST_MEDIA_SOURCE") != "" {
-		videoSrc, err = streamer.NewVideoTestStream()
-		if err != nil {
-			return
-		}
-		audioSrc, err = streamer.NewAudioTestStream()
-		return
-	}
-
-	videoSrc, err = streamer.NewX11VideoStream(":0")
-	if err != nil {
-		return
-	}
-	audioSrc, err = streamer.NewPulseAudioStream("localhost:4713")
-	return
 }
