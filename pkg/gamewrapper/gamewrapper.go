@@ -30,5 +30,6 @@ func (w *GameWrapper) Run(lis net.Listener) error {
 	if err := cmd.Run(); err != nil {
 		return err
 	}
+	select {}
 	return nil
 }

@@ -22,13 +22,14 @@ services:
       BROKER_ADDR: broker:50501
       AYAME_URL: ws://ayame:3000/signaling
       GAMEWRAPPER_ADDR: game:50501
-      PULSE_ADDR: pulseaudio:4713
+      PULSE_ADDR: localhost:4713
     volumes:
       - x11socket:/tmp/.X11-unix/
   pulseaudio:
     build: ./services/gaming/pulseaudio
     security_opt:
       - seccomp:unconfined # to avoid clock_getres() failure with EPERM on i386 pulseaudio
+    network_mode: service:gameagent
   xserver:
     build: ./services/gaming/xserver
     environment:

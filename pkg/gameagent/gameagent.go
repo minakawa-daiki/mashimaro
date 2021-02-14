@@ -98,8 +98,12 @@ func (a *Agent) Run(ctx context.Context, gsName string, mediaTracks *MediaTracks
 	if err != nil {
 		return errors.Wrap(err, "failed to get media stream")
 	}
+	defer videoStream.Close()
+	defer audioStream.Close()
 
 	log.Printf("start streaming media")
+	videoStream.Start()
+	audioStream.Start()
 	eg := &errgroup.Group{}
 	eg.Go(func() error {
 		if err := startStreamingMedia(ctx, mediaTracks.VideoTrack, videoStream); err != nil {
