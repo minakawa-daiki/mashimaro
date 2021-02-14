@@ -1,6 +1,7 @@
 package gameagent
 
 import (
+	"errors"
 	"os"
 
 	"github.com/castaneai/mashimaro/pkg/streamer"
@@ -44,10 +45,16 @@ func getMediaStreams() (videoSrc, audioSrc streamer.MediaStream, err error) {
 		return
 	}
 
+	// TODO: :0 -> ${DISPLAY}
 	videoSrc, err = streamer.NewX11VideoStream(":0")
 	if err != nil {
 		return
 	}
-	audioSrc, err = streamer.NewPulseAudioStream("localhost:4713")
+	paddr := os.Getenv("PULSE_ADDR")
+	if paddr == "" {
+		err = errors.New("env: PULSE_ADDR not set")
+		return
+	}
+	audioSrc, err = streamer.NewPulseAudioStream(paddr)
 	return
 }

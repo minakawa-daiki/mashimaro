@@ -2,18 +2,20 @@ package tests
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net"
+	"net/http"
 	"net/url"
+	"os"
 	"testing"
 	"time"
 
+	"github.com/castaneai/mashimaro/pkg/broker"
+
 	"github.com/castaneai/mashimaro/pkg/ayame"
 
-	"github.com/castaneai/mashimaro/pkg/gameagent"
-
-	"github.com/castaneai/mashimaro/pkg/gameserver"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/pion/webrtc/v3"
@@ -35,29 +37,28 @@ func checkAyame(t *testing.T) {
 	}
 }
 
-func TestSignaling(t *testing.T) {
+func newGame(gameID string) (gamesession.SessionID, error) {
+	addr := os.Getenv("BROKER_EXTERNAL_URL")
+	url := fmt.Sprintf("%s/newgame/%s", addr, gameID)
+	resp, err := http.Post(url, "application/json", nil)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	var newGameResp broker.NewGameResponse
+	dec := json.NewDecoder(resp.Body)
+	if err := dec.Decode(&newGameResp); err != nil {
+		return "", err
+	}
+	return newGameResp.SessionID, nil
+}
+
+func TestPlaying(t *testing.T) {
 	checkAyame(t)
 
 	ctx := context.Background()
-	gs := &gameserver.GameServer{Name: "dummy", Addr: "dummy-addr"}
-	store := gamesession.NewInMemoryStore()
-	bc := newInternalBrokerClient(t, store)
-	sigConf := &gameagent.SignalingConfig{AyameURL: ayameURL}
-	agent := gameagent.NewAgent(bc, sigConf)
-	mediaTracks, err := gameagent.NewMediaTracks()
+	sid, err := newGame("test-game")
 	assert.NoError(t, err)
-	go func() {
-		if err := agent.Run(ctx, gs.Name, mediaTracks); err != nil {
-			log.Printf("failed to run agent: %+v", err)
-		}
-	}()
-
-	ss, err := store.NewSession(ctx, &gamesession.NewSessionRequest{
-		GameID:     "test-game",
-		GameServer: gs,
-	})
-	assert.NoError(t, err)
-	sid := ss.SessionID
 
 	pcOffer := ayame.NewClient(ayame.WithInitPeerConnection(func(pc *webrtc.PeerConnection) error {
 		if _, err := pc.AddTransceiverFromKind(webrtc.RTPCodecTypeVideo, webrtc.RTPTransceiverInit{Direction: webrtc.RTPTransceiverDirectionRecvonly}); err != nil {
@@ -75,9 +76,12 @@ func TestSignaling(t *testing.T) {
 	})
 	if err := pcOffer.Connect(ctx, ayameURL, &ayame.ConnectRequest{
 		RoomID:   string(sid),
-		ClientID: "gameplayer",
+		ClientID: "player",
 	}); err != nil {
 		t.Fatal(err)
 	}
 	<-connected
+	log.Printf("player connected!")
+
+	select {}
 }

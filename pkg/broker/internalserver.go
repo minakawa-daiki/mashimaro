@@ -2,6 +2,7 @@ package broker
 
 import (
 	"context"
+	"log"
 
 	"github.com/castaneai/mashimaro/pkg/game"
 	"github.com/castaneai/mashimaro/pkg/gamesession"
@@ -18,6 +19,7 @@ func NewInternalServer(sessionStore gamesession.Store) *internalServer {
 }
 
 func (s *internalServer) FindSession(ctx context.Context, req *proto.FindSessionRequest) (*proto.FindSessionResponse, error) {
+	log.Printf("Finding session by gsName: %s", req.GameserverName)
 	ss, err := s.sessionStore.GetSessionByGameServerName(ctx, req.GameserverName)
 	if err == gamesession.ErrSessionNotFound {
 		return &proto.FindSessionResponse{Found: false}, nil
@@ -25,7 +27,10 @@ func (s *internalServer) FindSession(ctx context.Context, req *proto.FindSession
 	if err != nil {
 		return nil, err
 	}
+	log.Printf("found session: %+v", ss)
+
 	// TODO: metadata store
+	log.Printf("Finding metadata by gameID: %s", ss.GameID)
 	metadata, err := (&game.MockMetadataStore{}).GetGameMetadata(ctx, ss.GameID)
 	if err != nil {
 		return nil, err

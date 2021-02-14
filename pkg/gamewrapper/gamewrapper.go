@@ -25,6 +25,7 @@ func (w *GameWrapper) Run(lis net.Listener) error {
 
 	log.Printf("waiting for game start...")
 	startReq := <-startGameCh
+	log.Printf("starting game: %+v", startReq)
 	cmd := exec.Command(startReq.Command, startReq.Args...)
 	if err := cmd.Run(); err != nil {
 		return err

@@ -66,7 +66,7 @@ func startExternalServer(b *broker.Broker) error {
 
 func newAllocator() (gameserver.Allocator, error) {
 	if sa := os.Getenv("GAMESERVER_ADDR"); sa != "" {
-		return &gameserver.MockAllocator{MockedGS: &gameserver.GameServer{Addr: sa}}, nil
+		return &gameserver.MockAllocator{MockedGS: &gameserver.GameServer{Name: "dummy", Addr: sa}}, nil
 	}
 
 	addr := "agones-allocator.agones-system.svc.cluster.local.:443"

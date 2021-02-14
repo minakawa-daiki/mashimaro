@@ -13,7 +13,12 @@ A simple PoC of cloud gaming.
 ### Local development without Kubernetes
 
 - Go 1.13+
-- Gstreamer dev headers (`libgstreamer1.0-dev`, `libgstreamer-plugins-base1.0-dev`)
+- Gstreamer dev headers
+  - libgstreamer1.0-dev
+  - libgstreamer-plugins-base1.0-dev
+- X11 dev headers
+  - libxrandr-dev
+  - libxtst-dev
 
 ## Usage
 

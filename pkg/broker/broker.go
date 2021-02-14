@@ -33,6 +33,6 @@ func (b *Broker) NewGame(ctx context.Context, gameID string) (*gamesession.Sessi
 	if err != nil {
 		return nil, err
 	}
-	log.Printf("created game session: %s", ss.SessionID)
+	log.Printf("created game session: %s (gs: %+v)", ss.SessionID, gameServer)
 	return ss, nil
 }

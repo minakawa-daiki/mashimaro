@@ -35,6 +35,16 @@ func main() {
 	}
 	brokerClient := proto.NewBrokerClient(brokerCC)
 
+	gameWrapperAddr := "game:50501"
+	if a := os.Getenv("GAMEWRAPPER_ADDR"); a != "" {
+		gameWrapperAddr = a
+	}
+	gwCC, err := grpc.Dial(gameWrapperAddr, grpc.WithInsecure())
+	if err != nil {
+		log.Fatalf("failed to dial to gamewrapper: %+v", err)
+	}
+	gwClient := proto.NewGameWrapperClient(gwCC)
+
 	ayameURL := "ws://ayame:3000/signaling"
 	if a := os.Getenv("AYAME_URL"); a != "" {
 		ayameURL = a
@@ -42,7 +52,7 @@ func main() {
 	signalingConfig := &gameagent.SignalingConfig{
 		AyameURL: ayameURL,
 	}
-	agent := gameagent.NewAgent(brokerClient, signalingConfig)
+	agent := gameagent.NewAgent(brokerClient, gwClient, signalingConfig)
 	ctx := context.Background()
 	tracks, err := gameagent.NewMediaTracks()
 	if err != nil {

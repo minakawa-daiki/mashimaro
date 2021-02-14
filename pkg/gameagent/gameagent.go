@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pkg/errors"
+
 	"github.com/castaneai/mashimaro/pkg/streamer"
 
 	"github.com/pion/webrtc/v3/pkg/media"
@@ -44,6 +46,7 @@ func NewAgent(brokerClient proto.BrokerClient, gameWrapperClient proto.GameWrapp
 }
 
 func (a *Agent) Run(ctx context.Context, gsName string, mediaTracks *MediaTracks) error {
+	log.Printf("waiting for session...")
 	ss, err := waitForSession(ctx, a.brokerClient, gsName)
 	if err != nil {
 		return err
@@ -87,20 +90,28 @@ func (a *Agent) Run(ctx context.Context, gsName string, mediaTracks *MediaTracks
 		Command: cmds[0],
 		Args:    args,
 	}); err != nil {
-		return err
+		return errors.Wrap(err, "failed to start game")
 	}
 
+	log.Printf("getting media streams")
 	videoStream, audioStream, err := getMediaStreams()
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to get media stream")
 	}
 
+	log.Printf("start streaming media")
 	eg := &errgroup.Group{}
 	eg.Go(func() error {
-		return startStreamingMedia(ctx, mediaTracks.VideoTrack, videoStream)
+		if err := startStreamingMedia(ctx, mediaTracks.VideoTrack, videoStream); err != nil {
+			return errors.Wrap(err, "failed to stream video")
+		}
+		return nil
 	})
 	eg.Go(func() error {
-		return startStreamingMedia(ctx, mediaTracks.AudioTrack, audioStream)
+		if err := startStreamingMedia(ctx, mediaTracks.AudioTrack, audioStream); err != nil {
+			return errors.Wrap(err, "failed to stream audio")
+		}
+		return nil
 	})
 	return eg.Wait()
 }
@@ -113,7 +124,7 @@ func waitForSession(ctx context.Context, c proto.BrokerClient, gsName string) (*
 		case <-ticker.C:
 			resp, err := c.FindSession(ctx, &proto.FindSessionRequest{GameserverName: gsName})
 			if err != nil {
-				return nil, err
+				return nil, errors.Wrap(err, "failed to find session by broker")
 			}
 			if !resp.Found {
 				continue

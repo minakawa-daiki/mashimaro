@@ -2,6 +2,7 @@ package broker
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 
 	"github.com/castaneai/mashimaro/pkg/gamesession"
@@ -16,20 +17,25 @@ type NewGameResponse struct {
 func ExternalServer(b *Broker) http.Handler {
 	r := chi.NewRouter()
 	r.Post("/newgame/{gameID}", func(w http.ResponseWriter, req *http.Request) {
+		w.Header().Set("content-type", "application/json")
 		gameID := chi.URLParam(req, "gameID")
 		if gameID == "" {
-			http.Error(w, "gameID is empty", http.StatusUnprocessableEntity)
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte(`{"error": "gameID is empty"}`))
 			return
 		}
 		ss, err := b.NewGame(req.Context(), gameID)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			log.Printf("failed to new game: %+v", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(`{"error": "internal server error"}`))
 			return
 		}
-		w.Header().Set("content-type", "application/json")
 		enc := json.NewEncoder(w)
 		if err := enc.Encode(&NewGameResponse{SessionID: ss.SessionID}); err != nil {
-			http.Error(w, "failed to marshal json", http.StatusInternalServerError)
+			log.Printf("failed to encode JSON: %+v", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(`{"error": "internal server error"}`))
 			return
 		}
 	})

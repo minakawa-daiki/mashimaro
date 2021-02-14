@@ -18,8 +18,9 @@ type Client struct {
 	cid  string
 	opts *opts
 
-	onConnect  func()
-	callbackMu sync.Mutex
+	onConnect    func()
+	onDisconnect func()
+	callbackMu   sync.Mutex
 }
 
 type opts struct {
@@ -67,6 +68,12 @@ func (c *Client) OnConnect(f func()) {
 	c.callbackMu.Lock()
 	defer c.callbackMu.Unlock()
 	c.onConnect = f
+}
+
+func (c *Client) OnDisconnect(f func()) {
+	c.callbackMu.Lock()
+	defer c.callbackMu.Unlock()
+	c.onDisconnect = f
 }
 
 func (c *Client) Connect(ctx context.Context, url_ string, req *ConnectRequest) error {
@@ -196,11 +203,18 @@ func (c *Client) createPeerConnection() error {
 	}
 	pc.OnICEConnectionStateChange(func(state webrtc.ICEConnectionState) {
 		log.Printf("[%s] connection state has changed: %s", c.cid, state)
-		if state == webrtc.ICEConnectionStateConnected {
+		switch state {
+		case webrtc.ICEConnectionStateConnected:
 			c.callbackMu.Lock()
 			defer c.callbackMu.Unlock()
 			if c.onConnect != nil {
 				c.onConnect()
+			}
+		case webrtc.ICEConnectionStateDisconnected:
+			c.callbackMu.Lock()
+			defer c.callbackMu.Unlock()
+			if c.onDisconnect != nil {
+				c.onDisconnect()
 			}
 		}
 	})
