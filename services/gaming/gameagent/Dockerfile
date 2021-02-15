@@ -6,7 +6,7 @@ COPY go.mod .
 COPY go.sum .
 RUN go mod download
 COPY . .
-RUN go build -o /bin/gameagent services/gaming/gameagent/main.go
+RUN CGO_ENABLED=1 go build -o /bin/gameagent services/gaming/gameagent/main.go
 
 FROM ubuntu:20.04
 RUN apt update -y \

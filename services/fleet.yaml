@@ -21,8 +21,18 @@ spec:
               image: mashimaro/gameagent
               env:
                 - name: AYAME_URL
-                  value: ws://ayame.mashimaro.svc.cluster.local.:3000./signal"
+                  value: ws://ayame.mashimaro.svc.cluster.local.:3000/signal"
             - name: game
               image: mashimaro/game
-              command: ["wine"]
-              args: ["/microkiri/microkiri.exe"]
+              env:
+                - name: PORT
+                  value: "50501"
+                - name: PULSE_SERVER
+                  value: localhost:4713
+            - name: pulseaudio
+              image: mashimaro/pulseaudio
+            - name: xserver
+              image: mashimaro/xserver
+              env:
+                - name: DISPLAY
+                  value: ":0"

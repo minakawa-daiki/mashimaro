@@ -60,7 +60,21 @@ func TestPlaying(t *testing.T) {
 	sid, err := newGame("test-game")
 	assert.NoError(t, err)
 
+	videoTrackCh := make(chan *webrtc.TrackRemote)
+	audioTrackCh := make(chan *webrtc.TrackRemote)
+
 	pcOffer := ayame.NewClient(ayame.WithInitPeerConnection(func(pc *webrtc.PeerConnection) error {
+		pc.OnTrack(func(remote *webrtc.TrackRemote, receiver *webrtc.RTPReceiver) {
+			log.Printf("remote track found: %+v", remote)
+			switch remote.Kind() {
+			case webrtc.RTPCodecTypeVideo:
+				videoTrackCh <- remote
+			case webrtc.RTPCodecTypeAudio:
+				audioTrackCh <- remote
+			default:
+				log.Printf("unknown track found: %+v", remote)
+			}
+		})
 		if _, err := pc.AddTransceiverFromKind(webrtc.RTPCodecTypeVideo, webrtc.RTPTransceiverInit{Direction: webrtc.RTPTransceiverDirectionRecvonly}); err != nil {
 			return err
 		}
@@ -83,5 +97,13 @@ func TestPlaying(t *testing.T) {
 	<-connected
 	log.Printf("player connected!")
 
-	select {}
+	videoTrack := <-videoTrackCh
+	videoRTP, _, err := videoTrack.ReadRTP()
+	assert.NotNil(t, videoRTP)
+	assert.NoError(t, err)
+
+	audioTrack := <-audioTrackCh
+	audioRTP, _, err := audioTrack.ReadRTP()
+	assert.NotNil(t, audioRTP)
+	assert.NoError(t, err)
 }

@@ -8,6 +8,8 @@ require (
 	github.com/goccy/go-yaml v1.8.5
 	github.com/golang/protobuf v1.4.2
 	github.com/google/uuid v1.1.2
+	github.com/grpc-ecosystem/go-grpc-middleware v1.2.2 // indirect
+	github.com/kelseyhightower/envconfig v1.4.0 // indirect
 	github.com/notedit/gst v0.0.7
 	github.com/pion/webrtc/v3 v3.0.1
 	github.com/pkg/errors v0.9.1

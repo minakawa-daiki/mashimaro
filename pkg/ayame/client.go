@@ -3,6 +3,8 @@ package ayame
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"io"
 	"log"
 	"sync"
 
@@ -101,6 +103,9 @@ func (c *Client) recv(ctx context.Context) {
 		default:
 			var msg receivedMessage
 			if err := websocket.JSON.Receive(c.conn, &msg); err != nil {
+				if errors.Is(err, io.EOF) {
+					break
+				}
 				log.Printf("failed to receive JSON: %+v", err)
 				continue
 			}

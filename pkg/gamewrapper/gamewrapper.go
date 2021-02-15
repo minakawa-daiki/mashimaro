@@ -27,9 +27,5 @@ func (w *GameWrapper) Run(lis net.Listener) error {
 	startReq := <-startGameCh
 	log.Printf("starting game: %+v", startReq)
 	cmd := exec.Command(startReq.Command, startReq.Args...)
-	if err := cmd.Run(); err != nil {
-		return err
-	}
-	select {}
-	return nil
+	return cmd.Run()
 }

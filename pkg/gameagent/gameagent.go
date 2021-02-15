@@ -31,17 +31,24 @@ type Agent struct {
 	brokerClient      proto.BrokerClient
 	gameWrapperClient proto.GameWrapperClient
 	signalingConfig   *SignalingConfig
+	streamingConfig   *StreamingConfig
 }
 
 type SignalingConfig struct {
 	AyameURL string
 }
 
-func NewAgent(brokerClient proto.BrokerClient, gameWrapperClient proto.GameWrapperClient, sc *SignalingConfig) *Agent {
+type StreamingConfig struct {
+	XDisplay  string
+	PulseAddr string
+}
+
+func NewAgent(brokerClient proto.BrokerClient, gameWrapperClient proto.GameWrapperClient, signalingConfig *SignalingConfig, streamingConfig *StreamingConfig) *Agent {
 	return &Agent{
 		brokerClient:      brokerClient,
 		gameWrapperClient: gameWrapperClient,
-		signalingConfig:   sc,
+		signalingConfig:   signalingConfig,
+		streamingConfig:   streamingConfig,
 	}
 }
 
@@ -77,6 +84,7 @@ func (a *Agent) Run(ctx context.Context, gsName string, mediaTracks *MediaTracks
 	if err := ayamec.Connect(ctx, a.signalingConfig.AyameURL, &ayame.ConnectRequest{RoomID: string(sid), ClientID: "streamer"}); err != nil {
 		return err
 	}
+	// TODO: connection timed out
 	<-connected
 
 	log.Printf("[agent] connected!")
@@ -93,12 +101,15 @@ func (a *Agent) Run(ctx context.Context, gsName string, mediaTracks *MediaTracks
 		return errors.Wrap(err, "failed to start game")
 	}
 
-	log.Printf("getting media streams")
-	videoStream, audioStream, err := getMediaStreams()
+	videoStream, err := streamer.NewX11VideoStream(a.streamingConfig.XDisplay)
 	if err != nil {
-		return errors.Wrap(err, "failed to get media stream")
+		return errors.Wrap(err, "failed to get x11 video stream")
 	}
 	defer videoStream.Close()
+	audioStream, err := streamer.NewPulseAudioStream(a.streamingConfig.PulseAddr)
+	if err != nil {
+		return errors.Wrap(err, "failed to get pulse audio stream")
+	}
 	defer audioStream.Close()
 
 	log.Printf("start streaming media")
