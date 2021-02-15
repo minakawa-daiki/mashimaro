@@ -1,6 +1,5 @@
-FROM golang:alpine as builder
+FROM golang as builder
 WORKDIR /app
-RUN apk add --no-cache git
 COPY go.mod .
 COPY go.sum .
 RUN go mod download
@@ -9,7 +8,7 @@ RUN CGO_ENABLED=0 go build -o /bin/gamewrapper services/gaming/game/main.go
 
 FROM ubuntu:20.04
 RUN apt update -y \
-	&& apt install -y wget software-properties-common gpg-agent
+	&& apt install -y wget software-properties-common gpg-agent xvfb x11vnc
 RUN dpkg --add-architecture i386 \
 	&& wget -qO - https://dl.winehq.org/wine-builds/winehq.key | apt-key add - \
 	&& apt-add-repository -y 'deb https://dl.winehq.org/wine-builds/ubuntu/ focal main' \
@@ -23,5 +22,6 @@ RUN apt install -y locales \
 ENV WINEDLLOVERRIDES "mscoree=d;mshtml=d"
 ENV LANG ja_JP.UTF-8
 ENV DISPLAY :0
+COPY ./services/gaming/game/entrypoint.sh /entrypoint.sh
 COPY --from=builder /bin/gamewrapper /bin/gamewrapper
-ENTRYPOINT ["/bin/gamewrapper"]
+ENTRYPOINT ["/entrypoint.sh", "/bin/gamewrapper"]

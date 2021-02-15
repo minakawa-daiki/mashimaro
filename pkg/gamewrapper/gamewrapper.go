@@ -3,6 +3,7 @@ package gamewrapper
 import (
 	"log"
 	"net"
+	"os"
 	"os/exec"
 
 	"github.com/castaneai/mashimaro/pkg/proto"
@@ -27,5 +28,7 @@ func (w *GameWrapper) Run(lis net.Listener) error {
 	startReq := <-startGameCh
 	log.Printf("starting game: %+v", startReq)
 	cmd := exec.Command(startReq.Command, startReq.Args...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 	return cmd.Run()
 }

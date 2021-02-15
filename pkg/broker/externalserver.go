@@ -17,6 +17,10 @@ type NewGameResponse struct {
 func ExternalServer(b *Broker) http.Handler {
 	r := chi.NewRouter()
 	r.Post("/newgame/{gameID}", func(w http.ResponseWriter, req *http.Request) {
+		w.Header().Set("Access-Control-Allow-Headers", "*")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+
 		w.Header().Set("content-type", "application/json")
 		gameID := chi.URLParam(req, "gameID")
 		if gameID == "" {

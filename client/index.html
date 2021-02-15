@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>mashimaro</title>
+</head>
+<body>
+
+<button onclick="startConn()">New Game</button>
+<video id="remote-video" autoplay playsinline controls></video>
+
+<script src="https://unpkg.com/@open-ayame/ayame-web-sdk@2020.2.1/dist/ayame.min.js"></script>
+<script>
+    const startConn = async () => {
+        const resp = await (await fetch('http://localhost:8081/newgame/test-game', {method: 'POST'})).json();
+        const sid = resp.sessionId;
+        const conn = Ayame.connection('ws://localhost:3000/signaling', sid);
+        conn.options.video.direction = 'recvonly';
+        conn.options.audio.direction = 'recvonly';
+        await conn.connect(null);
+        conn.on('disconnect', (e) => console.log(e));
+        conn.on('addstream', (e) => {
+            document.querySelector('#remote-video').srcObject = e.stream;
+        });
+    };
+</script>
+</body>
+</html>

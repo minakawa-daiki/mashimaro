@@ -31,8 +31,9 @@ services:
       context: .
       dockerfile: services/gaming/game/Dockerfile
     environment:
+      DISPLAY: ":0"
       PORT: 50501
-      PULSE_SERVER: pulseaudio:4713
+      PULSE_SERVER: gameagent:4713
     volumes:
       - ./game/microkiri:/microkiri
       - x11socket:/tmp/.X11-unix/
@@ -41,12 +42,6 @@ services:
     security_opt:
       - seccomp:unconfined # to avoid clock_getres() failure with EPERM on i386 pulseaudio
     network_mode: service:gameagent
-  xserver:
-    build: ./services/gaming/xserver
-    environment:
-      DISPLAY: ":0"
-    volumes:
-      - x11socket:/tmp/.X11-unix/
 
 volumes:
   x11socket:
