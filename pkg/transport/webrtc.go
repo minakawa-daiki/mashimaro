@@ -172,7 +172,7 @@ func (c *WebRTCStreamerConn) SendVideoSample(ctx context.Context, sample MediaSa
 }
 
 func (c *WebRTCStreamerConn) SendAudioSample(ctx context.Context, sample MediaSample) error {
-	return c.videoTrack.WriteSample(media.Sample{Data: sample.Data, Duration: sample.Duration})
+	return c.audioTrack.WriteSample(media.Sample{Data: sample.Data, Duration: sample.Duration})
 }
 
 type WebRTCPlayerConn struct {

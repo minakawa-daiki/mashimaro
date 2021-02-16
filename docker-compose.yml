@@ -24,6 +24,7 @@ services:
       GAME_WRAPPER_ADDR: game:50501
       PULSE_ADDR: localhost:4713
       USE_MOCK_ALLOCATOR: 1
+      DISPLAY: ":0"
     volumes:
       - x11socket:/tmp/.X11-unix/
   game:
@@ -38,6 +39,8 @@ services:
       - ./game/microkiri:/microkiri
       - x11socket:/tmp/.X11-unix/
   pulseaudio:
+    depends_on:
+      - gameagent
     build: ./services/gaming/pulseaudio
     security_opt:
       - seccomp:unconfined # to avoid clock_getres() failure with EPERM on i386 pulseaudio

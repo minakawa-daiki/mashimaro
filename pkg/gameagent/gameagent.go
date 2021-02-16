@@ -133,7 +133,6 @@ func (a *Agent) Run(ctx context.Context, gsName string) error {
 		case err := <-streamingErr:
 			return errors.Wrap(err, "failed to streaming media")
 		case msg := <-msgCh:
-			log.Printf("msg received: %s", string(msg))
 			if err := a.handleMessage(ctx, msg); err != nil {
 				if errors.Is(err, ErrGameExited) {
 					a.handleExit()
