@@ -17,6 +17,7 @@ vi .env # Put your secrets
 ### Installation on local minikube cluster
 
 - minikube
+- helm
 - skaffold
 - kustomize
 - nodejs

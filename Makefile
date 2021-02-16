@@ -3,9 +3,9 @@ KUBERNETES_VERSION := 1.17.13
 AGONES_VERSION := 1.12.0
 
 up:
-	minikube start -p $(MINIKUBE_PROFILE) --kubernetes-version $(KUBERNETES_VERSION) --mount-string "$(shell pwd)/games:/games" --mount
+	minikube start -p $(MINIKUBE_PROFILE) --kubernetes-version $(KUBERNETES_VERSION) --mount-string "$(realpath .)/games:/games" --mount
 	minikube profile $(MINIKUBE_PROFILE)
-	minikube kubectl -- apply -f services/namespace.yaml # You need to create your namespaces before installing Agones.
+	minikube kubectl -- apply -f services/namespace.yaml
 	helm repo add agones https://agones.dev/chart/stable
 	helm repo update
 	helm upgrade --install agones --version $(AGONES_VERSION)  --namespace agones-system --create-namespace \
