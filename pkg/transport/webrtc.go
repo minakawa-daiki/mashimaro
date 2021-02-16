@@ -74,6 +74,10 @@ func NewWebRTCConn(cid string, pc *webrtc.PeerConnection, dcf *dataChannelFactor
 	return conn
 }
 
+func (c *WebRTCConn) PeerConnection() *webrtc.PeerConnection {
+	return c.pc
+}
+
 func (c *WebRTCConn) ConnectionID() string {
 	return c.cid
 }
