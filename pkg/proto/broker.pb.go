@@ -17,6 +17,8 @@ It has these top-level messages:
 	StartGameResponse
 	ExitGameRequest
 	ExitGameResponse
+	HealthCheckRequest
+	HealthCheckResponse
 */
 package proto
 

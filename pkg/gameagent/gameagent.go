@@ -178,6 +178,7 @@ func (a *Agent) startGame(ctx context.Context, metadata *gamemetadata.Metadata) 
 	}); err != nil {
 		return errors.Wrap(err, "failed to start game")
 	}
+	go a.startHealthCheck(ctx, 3*time.Second)
 	return nil
 }
 
@@ -262,5 +263,25 @@ func (a *Agent) handleExit() {
 	a.callbackMu.Unlock()
 	if h != nil {
 		h()
+	}
+}
+
+func (a *Agent) startHealthCheck(ctx context.Context, interval time.Duration) {
+	ticker := time.NewTicker(interval)
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			resp, err := a.gameWrapperClient.HealthCheck(ctx, &proto.HealthCheckRequest{})
+			if err != nil {
+				log.Printf("failed to health check: %+v", err)
+				return
+			}
+			if !resp.Healthy {
+				log.Printf("game process is unhealthy(exited)")
+				return
+			}
+		}
 	}
 }

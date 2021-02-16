@@ -3,14 +3,14 @@ package gamewrapper
 import (
 	"context"
 	"testing"
-	"time"
 
 	"github.com/castaneai/mashimaro/pkg/proto"
 	"github.com/castaneai/mashimaro/pkg/testutils"
+	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
 )
 
-func NewGameWrapperClient(t *testing.T) proto.GameWrapperClient {
+func newGameWrapperClient(t *testing.T) proto.GameWrapperClient {
 	lis := testutils.ListenTCPWithRandomPort(t)
 	s := grpc.NewServer()
 	proto.RegisterGameWrapperServer(s, NewGameWrapperServer())
@@ -22,14 +22,27 @@ func NewGameWrapperClient(t *testing.T) proto.GameWrapperClient {
 	return proto.NewGameWrapperClient(cc)
 }
 
-func TestNotePad(t *testing.T) {
-	wc := NewGameWrapperClient(t)
+func TestHealthCheck(t *testing.T) {
+	wc := newGameWrapperClient(t)
 	ctx := context.Background()
 	if _, err := wc.StartGame(ctx, &proto.StartGameRequest{Command: "wine", Args: []string{"notepad"}}); err != nil {
 		t.Fatal(err)
 	}
-	time.Sleep(1000 * time.Millisecond)
-	if _, err := wc.ExitGame(ctx, &proto.ExitGameRequest{}); err != nil {
-		t.Fatal(err)
+
+	{
+		resp, err := wc.HealthCheck(ctx, &proto.HealthCheckRequest{})
+		assert.NoError(t, err)
+		assert.True(t, resp.Healthy)
+	}
+
+	{
+		_, err := wc.ExitGame(ctx, &proto.ExitGameRequest{})
+		assert.NoError(t, err)
+	}
+
+	{
+		resp, err := wc.HealthCheck(ctx, &proto.HealthCheckRequest{})
+		assert.NoError(t, err)
+		assert.False(t, resp.Healthy)
 	}
 }

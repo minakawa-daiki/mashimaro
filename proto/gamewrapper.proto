@@ -5,6 +5,7 @@ option go_package = "proto";
 service GameWrapper {
   rpc StartGame(StartGameRequest) returns (StartGameResponse) {}
   rpc ExitGame(ExitGameRequest) returns (ExitGameResponse) {}
+  rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse) {}
 }
 
 message StartGameRequest {
@@ -20,3 +21,9 @@ message StartGameResponse {
 message ExitGameRequest {}
 
 message ExitGameResponse {}
+
+message HealthCheckRequest {}
+
+message HealthCheckResponse {
+  bool healthy = 1;
+}
