@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/castaneai/mashimaro/pkg/xorg"
+
 	"github.com/castaneai/mashimaro/pkg/messaging"
 
 	"github.com/castaneai/mashimaro/pkg/ayame"
@@ -75,6 +77,52 @@ func sendMoveMessage(t *testing.T, conn transport.PlayerConn, msg *messaging.Mov
 		t.Fatal(err)
 	}
 	b, err := json.Marshal(&messaging.Message{Type: messaging.MessageTypeMove, Body: bodyb})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := conn.SendMessage(context.Background(), b); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func sendMouseMessage(t *testing.T, conn transport.PlayerConn, button xorg.XButtonCode, isDown bool) {
+	mtype := messaging.MessageTypeMouseDown
+	var msg interface{}
+	if isDown {
+		mtype = messaging.MessageTypeMouseDown
+		msg = &messaging.MouseDownMessage{Button: int(button)}
+	} else {
+		mtype = messaging.MessageTypeMouseUp
+		msg = messaging.MouseUpMessage{Button: int(button)}
+	}
+	bodyb, err := json.Marshal(msg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := json.Marshal(&messaging.Message{Type: mtype, Body: bodyb})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := conn.SendMessage(context.Background(), b); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func sendKeyMessage(t *testing.T, conn transport.PlayerConn, key int, isDown bool) {
+	mtype := messaging.MessageTypeKeyDown
+	var msg interface{}
+	if isDown {
+		mtype = messaging.MessageTypeKeyDown
+		msg = &messaging.KeyDownMessage{Key: key}
+	} else {
+		mtype = messaging.MessageTypeKeyUp
+		msg = messaging.KeyUpMessage{Key: key}
+	}
+	bodyb, err := json.Marshal(msg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := json.Marshal(&messaging.Message{Type: mtype, Body: bodyb})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -150,8 +198,16 @@ func TestAgent(t *testing.T) {
 
 	for i := 0; i < 10; i++ {
 		sendMoveMessage(t, conn, &messaging.MoveMessage{X: i * 10, Y: i * 10})
-		time.Sleep(50 * time.Millisecond)
+		time.Sleep(10 * time.Millisecond)
 	}
+	sendMouseMessage(t, conn, xorg.XButtonCodeLeft, true)
+	sendMouseMessage(t, conn, xorg.XButtonCodeLeft, false)
+	for _, c := range "Hello,World." {
+		sendKeyMessage(t, conn, int(c), true)
+		sendKeyMessage(t, conn, int(c), false)
+		time.Sleep(10 * time.Millisecond)
+	}
+	time.Sleep(1 * time.Second)
 	sendExitGameMessage(t, conn)
 	<-agentExited
 }

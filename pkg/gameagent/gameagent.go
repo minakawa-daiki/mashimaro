@@ -196,6 +196,34 @@ func (a *Agent) handleMessage(ctx context.Context, data []byte) error {
 		}
 		xorg.Move(body.X, body.Y)
 		return nil
+	case messaging.MessageTypeMouseDown:
+		var body messaging.MouseDownMessage
+		if err := json.Unmarshal(msg.Body, &body); err != nil {
+			return err
+		}
+		xorg.ButtonDown(xorg.XButtonCode(body.Button))
+		return nil
+	case messaging.MessageTypeMouseUp:
+		var body messaging.MouseUpMessage
+		if err := json.Unmarshal(msg.Body, &body); err != nil {
+			return err
+		}
+		xorg.ButtonUp(xorg.XButtonCode(body.Button))
+		return nil
+	case messaging.MessageTypeKeyDown:
+		var body messaging.KeyDownMessage
+		if err := json.Unmarshal(msg.Body, &body); err != nil {
+			return err
+		}
+		xorg.KeyDown(uint64(body.Key))
+		return nil
+	case messaging.MessageTypeKeyUp:
+		var body messaging.KeyUpMessage
+		if err := json.Unmarshal(msg.Body, &body); err != nil {
+			return err
+		}
+		xorg.KeyUp(uint64(body.Key))
+		return nil
 	case messaging.MessageTypeExitGame:
 		if _, err := a.gameWrapperClient.ExitGame(ctx, &proto.ExitGameRequest{}); err != nil {
 			return err

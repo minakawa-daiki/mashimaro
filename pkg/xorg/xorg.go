@@ -15,6 +15,14 @@ import (
 	"unsafe"
 )
 
+type XButtonCode int
+
+const (
+	XButtonCodeLeft   XButtonCode = 1
+	XButtonCodeCenter XButtonCode = 2
+	XButtonCodeRight  XButtonCode = 3
+)
+
 type ScreenSize struct {
 	Width  int   `json:"width"`
 	Height int   `json:"height"`
@@ -29,7 +37,7 @@ type ScreenConfiguration struct {
 
 var ScreenConfigurations = make(map[int]ScreenConfiguration)
 
-var debounce_button = make(map[int]time.Time)
+var debounce_button = make(map[XButtonCode]time.Time)
 var debounce_key = make(map[uint64]time.Time)
 var mu = sync.Mutex{}
 
@@ -61,7 +69,7 @@ func Scroll(x, y int) {
 	C.XScroll(C.int(x), C.int(y))
 }
 
-func ButtonDown(code int) error {
+func ButtonDown(code XButtonCode) error {
 	mu.Lock()
 	defer mu.Unlock()
 
@@ -89,7 +97,7 @@ func KeyDown(code uint64) error {
 	return nil
 }
 
-func ButtonUp(code int) error {
+func ButtonUp(code XButtonCode) error {
 	mu.Lock()
 	defer mu.Unlock()
 

@@ -43,11 +43,36 @@
     const onMessage = (e) => {
         console.log('message received: ', e.data);
     }
+    document.querySelector('#remote-video').addEventListener('click', e => {
+        e.preventDefault();
+    })
+    document.querySelector('#remote-video').addEventListener('mousedown', e => {
+        if (!dataChannel || dataChannel.readyState !== 'open') return;
+        e.preventDefault();
+        const mouseDownMessage = {button: e.button+1} // https://developer.mozilla.org/ja/docs/Web/API/MouseEvent/button
+        dataChannel.send(JSON.stringify({'type': 'mousedown', 'body': mouseDownMessage}))
+    })
+    document.addEventListener('mouseup', e => {
+        if (!dataChannel || dataChannel.readyState !== 'open') return;
+        e.preventDefault();
+        const mouseUpMessage = {button: e.button+1} // https://developer.mozilla.org/ja/docs/Web/API/MouseEvent/button
+        dataChannel.send(JSON.stringify({'type': 'mouseup', 'body': mouseUpMessage}))
+    })
     document.querySelector('#remote-video').addEventListener('mousemove', e => {
         if (!dataChannel || dataChannel.readyState !== 'open') return;
         const moveMessage = {x: e.offsetX, y: e.offsetY}
         dataChannel.send(JSON.stringify({'type': 'move', 'body': moveMessage}))
     });
+    document.addEventListener('keydown', (e) => {
+        if (!dataChannel || dataChannel.readyState !== 'open') return;
+        const keyDownMessage = {key: e.key.charCodeAt(0)}
+        dataChannel.send(JSON.stringify({'type': 'keydown', 'body': keyDownMessage}))
+    })
+    document.addEventListener('keyup', (e) => {
+        if (!dataChannel || dataChannel.readyState !== 'open') return;
+        const keyUpMessage = {key: e.key.charCodeAt(0)}
+        dataChannel.send(JSON.stringify({'type': 'keyup', 'body': keyUpMessage}))
+    })
 </script>
 </body>
 </html>
