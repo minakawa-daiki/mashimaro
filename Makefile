@@ -1,20 +1,25 @@
 MINIKUBE_PROFILE := mashimaro
+KUBERNETES_VERSION := 1.17.13
+AGONES_VERSION := 1.12.0
 
 up:
-	minikube start -p $(MINIKUBE_PROFILE) --kubernetes-version v1.17.13
+	minikube start -p $(MINIKUBE_PROFILE) --kubernetes-version $(KUBERNETES_VERSION) --mount-string "$(shell pwd)/games:/games" --mount
 	minikube profile $(MINIKUBE_PROFILE)
 	minikube kubectl -- apply -f services/namespace.yaml # You need to create your namespaces before installing Agones.
 	helm repo add agones https://agones.dev/chart/stable
 	helm repo update
-	helm upgrade --install agones  --namespace agones-system --create-namespace \
+	helm upgrade --install agones --version $(AGONES_VERSION)  --namespace agones-system --create-namespace \
 		--set "gameservers.namespaces={mashimaro}" \
 		--set "agones.allocator.generateTLS=false" \
 		--set "agones.allocator.disableMTLS=true" \
 		--set "agones.allocator.disableTLS=true" \
 		agones/agones
 
+web:
+	npx live-server ./client
+
 run:
-	skaffold run --minikube-profile=$(MINIKUBE_PROFILE) --port-forward --tail
+	skaffold run --minikube-profile=$(MINIKUBE_PROFILE) --port-forward
 
 down:
 	minikube stop -p $(MINIKUBE_PROFILE)

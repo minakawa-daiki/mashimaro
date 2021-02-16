@@ -54,8 +54,9 @@ func NewClient(pc *webrtc.PeerConnection, options ...ClientOption) *Client {
 }
 
 type ConnectRequest struct {
-	RoomID   string
-	ClientID string
+	RoomID       string
+	ClientID     string
+	SignalingKey string
 }
 
 func (c *Client) Connect(ctx context.Context, url_ string, req *ConnectRequest) error {
@@ -109,6 +110,22 @@ func (c *Client) handleMessage(msg *receivedMessage) {
 			return
 		}
 		log.Printf("[%s] accepted(room: %s)", c.cid, c.rid)
+		if len(acc.IceServers) > 0 {
+			log.Printf("[%s] set ICE servers", c.cid)
+			conf := c.pc.GetConfiguration()
+			conf.ICEServers = nil
+			for _, resp := range acc.IceServers {
+				conf.ICEServers = append(conf.ICEServers, webrtc.ICEServer{
+					URLs:       resp.URLs,
+					Username:   resp.Username,
+					Credential: resp.Credential,
+				})
+			}
+			if err := c.pc.SetConfiguration(conf); err != nil {
+				log.Printf("[%s] failed to set configuration: %+v", c.cid, err)
+				return
+			}
+		}
 		c.pc.OnICECandidate(func(candidate *webrtc.ICECandidate) {
 			var ice *webrtc.ICECandidateInit
 			if candidate != nil {
@@ -180,9 +197,10 @@ func (c *Client) handleMessage(msg *receivedMessage) {
 
 func (c *Client) sendRegisterMessage(req *ConnectRequest) error {
 	msg := &registerMessage{
-		Type:     "register",
-		RoomID:   req.RoomID,
-		ClientID: req.ClientID,
+		Type:         "register",
+		RoomID:       req.RoomID,
+		ClientID:     req.ClientID,
+		SignalingKey: req.SignalingKey,
 	}
 	c.cid = req.ClientID
 	c.rid = req.RoomID

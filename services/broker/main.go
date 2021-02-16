@@ -39,9 +39,10 @@ func main() {
 	// TODO: persistent session store
 	sessionStore := gamesession.NewInMemoryStore()
 	metadataStore := game.NewMockMetadataStore()
+	// TODO: persistent metadata store
 	if err := metadataStore.AddGameMetadata(context.Background(), "test-game", &game.Metadata{
 		GameID:  "test-game",
-		Command: "wine /microkiri/microkiri.exe",
+		Command: "wine /games/microkiri/microkiri.exe",
 	}); err != nil {
 		log.Fatalf("failed to add metadata: %+v", err)
 	}

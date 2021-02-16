@@ -1,0 +1,10 @@
+resources:
+  - services/broker/broker.yaml
+  - services/fleet.yaml
+namespace: mashimaro
+secretGenerator:
+  - name: ayame-labo-secrets
+    envs:
+      - .env
+generatorOptions:
+  disableNameSuffixHash: true # Agones fleet containers spec does not respond suffix hash...

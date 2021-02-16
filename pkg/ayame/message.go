@@ -28,14 +28,22 @@ type pingPongMessage struct {
 }
 
 type registerMessage struct {
-	Type     string `json:"type"`
-	RoomID   string `json:"roomId"`
-	ClientID string `json:"clientId"`
+	Type         string `json:"type"`
+	RoomID       string `json:"roomId"`
+	ClientID     string `json:"clientId"`
+	SignalingKey string `json:"signalingKey,omitempty"`
 }
 
 type acceptMessage struct {
-	Type          string `json:"type"`
-	IsExistClient bool   `json:"isExistClient"`
+	Type          string       `json:"type"`
+	IceServers    []*iceServer `json:"iceServers"`
+	IsExistClient bool         `json:"isExistClient"`
+}
+
+type iceServer struct {
+	Credential string   `json:"credential"`
+	URLs       []string `json:"urls"`
+	Username   string   `json:"username"`
 }
 
 type rejectMessage struct {

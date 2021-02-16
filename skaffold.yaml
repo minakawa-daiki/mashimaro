@@ -6,34 +6,21 @@ build:
       context: .
       docker:
         dockerfile: services/broker/Dockerfile
-    - image: mashimaro/ayame
-      context: services/ayame
-      docker:
-        dockerfile: Dockerfile
     - image: mashimaro/gameagent
       context: .
       docker:
         dockerfile: services/gaming/gameagent/Dockerfile
     - image: mashimaro/game
-      context: services/gaming/game
+      context: .
+      docker:
+        dockerfile: services/gaming/game/Dockerfile
+    - image: mashimaro/pulseaudio
+      context: services/gaming/pulseaudio
       docker:
         dockerfile: Dockerfile
   local:
     useBuildkit: true
 deploy:
-  kubectl:
-    manifests:
-      - services/fleet.yaml
-      - services/broker/broker.yaml
-      - services/ayame/ayame.yaml
-portForward:
-  - resourceType: Pod
-    resourceName: broker
-    namespace: mashimaro
-    port: 8081
-    localPort: 8081
-  - resourceType: Pod
-    resourceName: ayame
-    namespace: mashimaro
-    port: 3000
-    localPort: 3000
+  kustomize:
+    paths:
+      - "."

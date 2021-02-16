@@ -1,9 +1,8 @@
-FROM golang:alpine as builder
+FROM golang as builder
 WORKDIR /
-RUN apk add --no-cache git
-RUN go get github.com/OpenAyame/ayame
+RUN CGO_ENABLED=0 go get github.com/OpenAyame/ayame
 
-FROM alpine
+FROM scratch
 WORKDIR /app
 COPY --from=builder /go/bin/ayame /app/ayame
 COPY ./ayame_config.yaml /app/ayame.yaml

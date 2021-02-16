@@ -15,6 +15,13 @@
 </head>
 <body>
 
+<div>
+    <ul>
+        <li><label>Ayame Labo URL: <input id="ayameLaboUrl" type="text" value="wss://ayame-labo.shiguredo.jp/signaling"></label></li>
+        <li><label>Ayame Labo Key: <input id="ayameLaboSignalingKey" type="text" value=""></label></li>
+        <li><label>Ayame Labo Account: <input id="ayameLaboAccount" type="text" value=""></label></li>
+    </ul>
+</div>
 <button onclick="startConn()">New Game</button>
 <video id="remote-video" autoplay playsinline controls></video>
 
@@ -24,7 +31,13 @@
     const startConn = async () => {
         const resp = await (await fetch('http://localhost:8081/newgame/test-game', {method: 'POST'})).json();
         const sid = resp.sessionId;
-        const conn = Ayame.connection('ws://localhost:3000/signaling', sid);
+        const ayameLaboUrl = document.querySelector('#ayameLaboUrl').value
+        const ayameLaboSignalingKey = document.querySelector('#ayameLaboSignalingKey').value
+        const ayameLaboAccount = document.querySelector('#ayameLaboAccount').value
+        const roomId = `${ayameLaboAccount}@${sid}`
+        const options = Ayame.defaultOptions;
+        options.signalingKey = ayameLaboSignalingKey
+        const conn = Ayame.connection(ayameLaboUrl, roomId, options, true);
         conn.options.video.direction = 'recvonly';
         conn.options.audio.direction = 'recvonly';
         conn.on('open', async (e) => {

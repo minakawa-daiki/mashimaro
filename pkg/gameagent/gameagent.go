@@ -35,7 +35,14 @@ const (
 )
 
 var (
-	ErrGameExited = errors.New("game exited")
+	ErrGameExited              = errors.New("game exited")
+	defaultWebRTCConfiguration = webrtc.Configuration{
+		ICEServers: []webrtc.ICEServer{
+			{
+				URLs: []string{"stun:stun.l.google.com:19302"},
+			},
+		},
+	}
 )
 
 type Agent struct {
@@ -91,7 +98,7 @@ func (a *Agent) Run(ctx context.Context, gsName string) error {
 	xorg.Display(a.streamingConfig.XDisplay)
 	log.Printf("--- (TODO) provisioning game...")
 
-	conn, err := transport.NewWebRTCStreamerConn(webrtc.Configuration{})
+	conn, err := transport.NewWebRTCStreamerConn(defaultWebRTCConfiguration)
 	if err != nil {
 		return errors.Wrap(err, "failed to new webrtc streamer conn")
 	}

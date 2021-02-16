@@ -1,5 +1,9 @@
 /tests
 /game
 /client
+/proto
 README.md
+LICENSE
 *.svg
+/skaffold.yaml
+/docker-compose.yml

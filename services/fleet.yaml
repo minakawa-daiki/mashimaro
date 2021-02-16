@@ -2,7 +2,6 @@ apiVersion: "agones.dev/v1"
 kind: Fleet
 metadata:
   name: mashimaro-fleet
-  namespace: mashimaro
 spec:
   replicas: 2
   strategy:
@@ -16,12 +15,30 @@ spec:
           protocol: TCP
       template:
         spec:
+          volumes:
+            - name: games
+              hostPath:
+                path: /games
+            - name: x11
+              emptyDir:
+                medium: Memory
+                sizeLimit: 10Mi
           containers:
             - name: gameagent
               image: mashimaro/gameagent
               env:
-                - name: AYAME_ADDR
-                  value: ws://ayame.mashimaro.svc.cluster.local.:3000/signal
+                - name: AYAME_LABO_URL
+                  value: wss://ayame-labo.shiguredo.jp/signaling
+                - name: AYAME_LABO_SIGNALING_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: ayame-labo-secrets
+                      key: AYAME_LABO_SIGNALING_KEY
+                - name: AYAME_LABO_GITHUB_ACCOUNT
+                  valueFrom:
+                    secretKeyRef:
+                      name: ayame-labo-secrets
+                      key: AYAME_LABO_GITHUB_ACCOUNT
                 - name: INTERNAL_BROKER_ADDR
                   value: broker.mashimaro.svc.cluster.local.:50501
                 - name: GAME_WRAPPER_ADDR
@@ -30,6 +47,9 @@ spec:
                   value: localhost:4713
                 - name: DISPLAY
                   value: ":0"
+              volumeMounts:
+                - name: x11
+                  mountPath: /tmp/.X11-unix
             - name: game
               image: mashimaro/game
               env:
@@ -37,5 +57,10 @@ spec:
                   value: "50501"
                 - name: PULSE_SERVER
                   value: localhost:4713
+              volumeMounts:
+                - name: x11
+                  mountPath: /tmp/.X11-unix
+                - name: games
+                  mountPath: /games
             - name: pulseaudio
               image: mashimaro/pulseaudio

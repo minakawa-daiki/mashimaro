@@ -3,7 +3,6 @@ kind: Pod
 apiVersion: v1
 metadata:
   name: broker
-  namespace: mashimaro
   labels:
     component: broker
 spec:
@@ -24,3 +23,21 @@ spec:
         - name: FLEET_NAMESPACE
           value: mashimaro
 ---
+kind: Service
+apiVersion: v1
+metadata:
+  name: broker
+  labels:
+    component: broker
+spec:
+  selector:
+    component: broker
+  ports:
+    - name: external
+      protocol: TCP
+      port: 8081
+      targetPort: 8081
+    - name: internal
+      protocol: TCP
+      port: 50501
+      targetPort: 50501

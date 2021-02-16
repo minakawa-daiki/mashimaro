@@ -19,12 +19,14 @@ import (
 )
 
 type config struct {
-	InternalBrokerAddr string `envconfig:"INTERNAL_BROKER_ADDR" default:"broker.mashimaro.svc.cluster.local.:50501"`
-	GameWrapperAddr    string `envconfig:"GAME_WRAPPER_ADDR" default:"localhost.50501"`
-	AyameAddr          string `envconfig:"AYAME_ADDR" default:"ws://ayame.mashimaro.svc.cluster.local.:3000./signal"`
-	UseMockAllocator   bool   `envconfig:"USE_MOCK_ALLOCATOR" default:"false"`
-	PulseAddr          string `envconfig:"PULSE_ADDR" default:"localhost:4713"`
-	XDisplay           string `envconfig:"DISPLAY" default:":0"`
+	AyameLaboURL           string `envconfig:"AYAME_LABO_URL" required:"true"`
+	AyameLaboSignalingKey  string `envconfig:"AYAME_LABO_SIGNALING_KEY" required:"true"`
+	AyameLaboGitHubAccount string `envconfig:"AYAME_LABO_GITHUB_ACCOUNT" required:"true"`
+	InternalBrokerAddr     string `envconfig:"INTERNAL_BROKER_ADDR" default:"broker.mashimaro.svc.cluster.local.:50501"`
+	GameWrapperAddr        string `envconfig:"GAME_WRAPPER_ADDR" default:"localhost.50501"`
+	UseMockAllocator       bool   `envconfig:"USE_MOCK_ALLOCATOR" default:"false"`
+	PulseAddr              string `envconfig:"PULSE_ADDR" default:"localhost:4713"`
+	XDisplay               string `envconfig:"DISPLAY" default:":0"`
 }
 
 func main() {
@@ -64,7 +66,7 @@ func main() {
 	}
 	gwClient := proto.NewGameWrapperClient(gwCC)
 
-	signaler := gameagent.NewAyameSignaler(conf.AyameAddr)
+	signaler := gameagent.NewAyameLaboSignaler(conf.AyameLaboURL, conf.AyameLaboSignalingKey, conf.AyameLaboGitHubAccount)
 	streamingConfig := &gameagent.StreamingConfig{
 		XDisplay:  conf.XDisplay,
 		PulseAddr: conf.PulseAddr,
