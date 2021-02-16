@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"sync"
 	"time"
 
 	"github.com/notedit/gst"
@@ -24,6 +25,7 @@ type gstStream struct {
 	pipelineStr string
 	gstPipeline *gst.Pipeline
 	gstElement  *gst.Element
+	mu          sync.Mutex
 }
 
 func newGstStream(pipelineStr, sinkName string) (*gstStream, error) {
@@ -41,11 +43,15 @@ func newGstStream(pipelineStr, sinkName string) (*gstStream, error) {
 
 func (s *gstStream) Start() {
 	log.Printf("Starting GStreamer pipeline: %s", s.pipelineStr)
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.gstPipeline.SetState(gst.StatePlaying)
 }
 
 func (s *gstStream) Close() error {
 	log.Printf("Stopping GStreamer pipeline: %s", s.pipelineStr)
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.gstPipeline.SetState(gst.StateNull)
 	return nil
 }
@@ -64,29 +70,26 @@ func (s *gstStream) ReadChunk() (*MediaChunk, error) {
 	}, nil
 }
 
-func NewX11VideoStream(displayName string) (MediaStream, error) {
+func NewX11VideoStream(display, x264params string) (MediaStream, error) {
 	if err := gst.CheckPlugins([]string{"ximagesrc"}); err != nil {
 		return nil, err
 	}
 	// why use-damage=0?: https://github.com/GoogleCloudPlatform/selkies-vdi/blob/0da21b7c9432bd5c99f1f9f7c541ac9c583f9ef4/images/gst-webrtc-app/gstwebrtc_app.py#L148
-	return NewH264VideoStream(fmt.Sprintf("ximagesrc display-name=%s remote=1 use-damage=0", displayName))
+	return NewH264VideoStream(fmt.Sprintf("ximagesrc display-name=%s remote=1 use-damage=0", display), x264params)
 }
 
 func NewVideoTestStream() (MediaStream, error) {
-	return NewH264VideoStream("videotestsrc")
+	return NewH264VideoStream("videotestsrc", "")
 }
 
 func NewAudioTestStream() (MediaStream, error) {
 	return NewOpusAudioStream("audiotestsrc")
 }
 
-func NewH264VideoStream(src string) (MediaStream, error) {
+func NewH264VideoStream(src, x264params string) (MediaStream, error) {
 	if err := gst.CheckPlugins([]string{"x264"}); err != nil {
 		return nil, err
 	}
-	// TODO: x264enc && key-int-max > 1 does not work on Google Chrome on Mac OS
-	// https://qiita.com/nakakura/items/87a5de9ba1a85eb39bc6
-	x264params := fmt.Sprintf(`speed-preset=ultrafast tune=zerolatency byte-stream=true key-int-max=1 intra-refresh=true`)
 	pipelineStr := fmt.Sprintf("%s ! videoconvert ! video/x-raw,format=I420 ! x264enc %s ! appsink name=video", src, x264params)
 	return newGstStream(pipelineStr, "video")
 }

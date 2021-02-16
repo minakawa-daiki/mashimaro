@@ -3,6 +3,8 @@ package ayame
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"io"
 	"log"
 	"sync"
 
@@ -18,18 +20,16 @@ type Client struct {
 	cid  string
 	opts *opts
 
-	onConnect  func()
-	callbackMu sync.Mutex
+	onConnect    func()
+	onDisconnect func()
+	callbackMu   sync.Mutex
 }
 
 type opts struct {
-	initPeerConnection func(pc *webrtc.PeerConnection) error
 }
 
 func defaultOptions() *opts {
-	return &opts{
-		initPeerConnection: nil,
-	}
+	return &opts{}
 }
 
 type ClientOption interface {
@@ -42,18 +42,13 @@ func (f ClientOptionFunc) apply(opts *opts) {
 	f(opts)
 }
 
-func WithInitPeerConnection(f func(pc *webrtc.PeerConnection) error) ClientOption {
-	return ClientOptionFunc(func(o *opts) {
-		o.initPeerConnection = f
-	})
-}
-
-func NewClient(options ...ClientOption) *Client {
+func NewClient(pc *webrtc.PeerConnection, options ...ClientOption) *Client {
 	opts := defaultOptions()
 	for _, opt := range options {
 		opt.apply(opts)
 	}
 	return &Client{
+		pc:   pc,
 		opts: opts,
 	}
 }
@@ -61,12 +56,6 @@ func NewClient(options ...ClientOption) *Client {
 type ConnectRequest struct {
 	RoomID   string
 	ClientID string
-}
-
-func (c *Client) OnConnect(f func()) {
-	c.callbackMu.Lock()
-	defer c.callbackMu.Unlock()
-	c.onConnect = f
 }
 
 func (c *Client) Connect(ctx context.Context, url_ string, req *ConnectRequest) error {
@@ -94,6 +83,9 @@ func (c *Client) recv(ctx context.Context) {
 		default:
 			var msg receivedMessage
 			if err := websocket.JSON.Receive(c.conn, &msg); err != nil {
+				if errors.Is(err, io.EOF) {
+					break
+				}
 				log.Printf("failed to receive JSON: %+v", err)
 				continue
 			}
@@ -117,10 +109,17 @@ func (c *Client) handleMessage(msg *receivedMessage) {
 			return
 		}
 		log.Printf("[%s] accepted(room: %s)", c.cid, c.rid)
-		if err := c.createPeerConnection(); err != nil {
-			log.Printf("failed to create peer connection: %+v", err)
-			return
-		}
+		c.pc.OnICECandidate(func(candidate *webrtc.ICECandidate) {
+			var ice *webrtc.ICECandidateInit
+			if candidate != nil {
+				c := candidate.ToJSON()
+				ice = &c
+			}
+			log.Printf("[%s] new ICE candidate: %v", c.cid, candidate)
+			if err := websocket.JSON.Send(c.conn, &candidateMessage{Type: "candidate", ICECandidate: ice}); err != nil {
+				log.Printf("failed to send JSON: %+v", err)
+			}
+		})
 		if acc.IsExistClient {
 			if err := c.sendOffer(); err != nil {
 				log.Printf("failed to send offer: %+v", err)
@@ -172,6 +171,8 @@ func (c *Client) handleMessage(msg *receivedMessage) {
 				return
 			}
 		}
+	case "bye":
+		log.Printf("[%s] bye received from ayame", c.cid)
 	default:
 		log.Printf("unknown type received: %s", msg.Type)
 	}
@@ -186,48 +187,6 @@ func (c *Client) sendRegisterMessage(req *ConnectRequest) error {
 	c.cid = req.ClientID
 	c.rid = req.RoomID
 	return websocket.JSON.Send(c.conn, msg)
-}
-
-func (c *Client) createPeerConnection() error {
-	// TODO: STUN server
-	pc, err := webrtc.NewPeerConnection(webrtc.Configuration{})
-	if err != nil {
-		return err
-	}
-	pc.OnICEConnectionStateChange(func(state webrtc.ICEConnectionState) {
-		log.Printf("[%s] connection state has changed: %s", c.cid, state)
-		if state == webrtc.ICEConnectionStateConnected {
-			c.callbackMu.Lock()
-			defer c.callbackMu.Unlock()
-			if c.onConnect != nil {
-				c.onConnect()
-			}
-		}
-	})
-	pc.OnICECandidate(func(candidate *webrtc.ICECandidate) {
-		var ice *webrtc.ICECandidateInit
-		if candidate != nil {
-			c := candidate.ToJSON()
-			ice = &c
-		}
-		log.Printf("[%s] new ICE candidate: %v", c.cid, candidate)
-		if err := websocket.JSON.Send(c.conn, &candidateMessage{Type: "candidate", ICECandidate: ice}); err != nil {
-			log.Printf("failed to send JSON: %+v", err)
-		}
-	})
-	if _, err = pc.AddTransceiverFromKind(webrtc.RTPCodecTypeVideo, webrtc.RTPTransceiverInit{Direction: webrtc.RTPTransceiverDirectionRecvonly}); err != nil {
-		return err
-	}
-	if _, err := pc.AddTransceiverFromKind(webrtc.RTPCodecTypeAudio, webrtc.RTPTransceiverInit{Direction: webrtc.RTPTransceiverDirectionRecvonly}); err != nil {
-		return err
-	}
-	if c.opts.initPeerConnection != nil {
-		if err := c.opts.initPeerConnection(pc); err != nil {
-			return err
-		}
-	}
-	c.pc = pc
-	return nil
 }
 
 func (c *Client) sendOffer() error {

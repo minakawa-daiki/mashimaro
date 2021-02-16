@@ -15,6 +15,8 @@ It has these top-level messages:
 	GameMetadata
 	StartGameRequest
 	StartGameResponse
+	ExitGameRequest
+	ExitGameResponse
 */
 package proto
 

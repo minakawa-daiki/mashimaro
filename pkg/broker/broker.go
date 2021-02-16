@@ -4,6 +4,8 @@ import (
 	"context"
 	"log"
 
+	"github.com/castaneai/mashimaro/pkg/game"
+
 	"github.com/castaneai/mashimaro/pkg/gameserver"
 
 	"github.com/castaneai/mashimaro/pkg/gamesession"
@@ -13,12 +15,17 @@ import (
 // 1. HTTP server interacts with client
 // 2. gRPC server interacts with game server
 type Broker struct {
-	sessionStore gamesession.Store
-	allocator    gameserver.Allocator
+	sessionStore  gamesession.Store
+	metadataStore game.MetadataStore
+	allocator     gameserver.Allocator
 }
 
-func NewBroker(sessionStore gamesession.Store, allocator gameserver.Allocator) *Broker {
-	return &Broker{sessionStore: sessionStore, allocator: allocator}
+func NewBroker(sessionStore gamesession.Store, metadataStore game.MetadataStore, allocator gameserver.Allocator) *Broker {
+	return &Broker{
+		sessionStore:  sessionStore,
+		metadataStore: metadataStore,
+		allocator:     allocator,
+	}
 }
 
 func (b *Broker) NewGame(ctx context.Context, gameID string) (*gamesession.Session, error) {
@@ -33,6 +40,6 @@ func (b *Broker) NewGame(ctx context.Context, gameID string) (*gamesession.Sessi
 	if err != nil {
 		return nil, err
 	}
-	log.Printf("created game session: %s", ss.SessionID)
+	log.Printf("created game session: %s (gs: %+v)", ss.SessionID, gameServer)
 	return ss, nil
 }

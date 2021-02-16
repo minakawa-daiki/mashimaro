@@ -6,6 +6,10 @@ import (
 	"os"
 	"time"
 
+	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
+
+	"github.com/kelseyhightower/envconfig"
+
 	"github.com/castaneai/mashimaro/pkg/proto"
 	"google.golang.org/grpc"
 
@@ -14,42 +18,75 @@ import (
 	sdk "agones.dev/agones/sdks/go"
 )
 
+type config struct {
+	InternalBrokerAddr string `envconfig:"INTERNAL_BROKER_ADDR" default:"broker.mashimaro.svc.cluster.local.:50501"`
+	GameWrapperAddr    string `envconfig:"GAME_WRAPPER_ADDR" default:"localhost.50501"`
+	AyameAddr          string `envconfig:"AYAME_ADDR" default:"ws://ayame.mashimaro.svc.cluster.local.:3000./signal"`
+	UseMockAllocator   bool   `envconfig:"USE_MOCK_ALLOCATOR" default:"false"`
+	PulseAddr          string `envconfig:"PULSE_ADDR" default:"localhost:4713"`
+	XDisplay           string `envconfig:"DISPLAY" default:":0"`
+}
+
 func main() {
-	gameServerName := "dummy"
+	var conf config
+	if err := envconfig.Process("", &conf); err != nil {
+		log.Fatalf("failed to process config: %+v", err)
+	}
+	log.Printf("load config: %+v", conf)
+
+	gameServerName := ""
+	if conf.UseMockAllocator {
+		gameServerName = "dummy"
+	}
+	var agones *sdk.SDK
 	if isRunningOnKubernetes() {
-		agones := setupAgones()
+		agones = setupAgones()
 		gs, err := agones.GameServer()
 		if err != nil {
 			log.Fatalf("failed to get agones GameServer: %+v", err)
 		}
 		gameServerName = gs.ObjectMeta.Name
 	}
-
-	brokerAddr := "broker:50501"
-	if a := os.Getenv("BROKER_ADDR"); a != "" {
-		brokerAddr = a
+	if gameServerName == "" {
+		log.Fatalf("gameServerName not set (Set `USE_MOCK_ALLOCATOR=1` for non-k8s environment)")
 	}
-	brokerCC, err := grpc.Dial(brokerAddr, grpc.WithInsecure())
+
+	dialOpts := append([]grpc.DialOption{grpc.WithInsecure()}, retryDialOptions()...)
+	brokerCC, err := grpc.Dial(conf.InternalBrokerAddr, dialOpts...)
 	if err != nil {
 		log.Fatalf("failed to dial to broker: %+v", err)
 	}
 	brokerClient := proto.NewBrokerClient(brokerCC)
 
-	ayameURL := "ws://ayame:3000/signaling"
-	if a := os.Getenv("AYAME_URL"); a != "" {
-		ayameURL = a
-	}
-	signalingConfig := &gameagent.SignalingConfig{
-		AyameURL: ayameURL,
-	}
-	agent := gameagent.NewAgent(brokerClient, signalingConfig)
-	ctx := context.Background()
-	tracks, err := gameagent.NewMediaTracks()
+	gwCC, err := grpc.Dial(conf.GameWrapperAddr, dialOpts...)
 	if err != nil {
-		log.Fatalf("failed to get media tracks: %+v", err)
+		log.Fatalf("failed to dial to gamewrapper: %+v", err)
 	}
-	if err := agent.Run(ctx, gameServerName, tracks); err != nil {
+	gwClient := proto.NewGameWrapperClient(gwCC)
+
+	signaler := gameagent.NewAyameSignaler(conf.AyameAddr)
+	streamingConfig := &gameagent.StreamingConfig{
+		XDisplay:  conf.XDisplay,
+		PulseAddr: conf.PulseAddr,
+	}
+	agent := gameagent.NewAgent(brokerClient, gwClient, signaler, streamingConfig)
+	if agones != nil {
+		agent.OnExit(func() {
+			if err := agones.Shutdown(); err != nil {
+				log.Printf("failed to send shutdown to Agones SDK: %+v", err)
+			}
+		})
+	}
+	ctx := context.Background()
+	if err := agent.Run(ctx, gameServerName); err != nil {
 		log.Fatalf("failed to run agent: %+v", err)
+	}
+}
+
+func retryDialOptions() []grpc.DialOption {
+	return []grpc.DialOption{
+		grpc.WithUnaryInterceptor(grpc_retry.UnaryClientInterceptor()),
+		grpc.WithStreamInterceptor(grpc_retry.StreamClientInterceptor()),
 	}
 }
 

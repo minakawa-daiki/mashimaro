@@ -1,11 +1,10 @@
-FROM golang:alpine as builder
+FROM golang as builder
 WORKDIR /app
-RUN apk add --no-cache git
 COPY go.mod .
 COPY go.sum .
 RUN go mod download
 COPY . .
-RUN go build -o /bin/gamewrapper services/gaming/game/gamewrapper.go
+RUN CGO_ENABLED=0 go build -o /bin/gamewrapper services/gaming/game/main.go
 
 FROM ubuntu:20.04
 RUN apt update -y \
@@ -23,6 +22,6 @@ RUN apt install -y locales \
 ENV WINEDLLOVERRIDES "mscoree=d;mshtml=d"
 ENV LANG ja_JP.UTF-8
 ENV DISPLAY :0
+COPY ./services/gaming/game/entrypoint.sh /entrypoint.sh
 COPY --from=builder /bin/gamewrapper /bin/gamewrapper
-COPY services/gaming/game/entrypoint.sh /entrypoint.sh
 ENTRYPOINT ["/entrypoint.sh", "/bin/gamewrapper"]

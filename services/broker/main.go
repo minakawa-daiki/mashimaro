@@ -1,11 +1,15 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net"
 	"net/http"
-	"os"
+
+	"github.com/castaneai/mashimaro/pkg/game"
+
+	"github.com/kelseyhightower/envconfig"
 
 	"golang.org/x/sync/errgroup"
 
@@ -17,32 +21,51 @@ import (
 	"github.com/castaneai/mashimaro/pkg/proto"
 )
 
+type config struct {
+	AllocatorAddr    string `envconfig:"ALLOCATOR_ADDR" default:"agones-allocator.agones-system.svc.cluster.local.:443"`
+	FleetNamespace   string `envconfig:"FLEET_NAMESPACE" default:"mashimaro"`
+	UseMockAllocator bool   `envconfig:"USE_MOCK_ALLOCATOR" default:"false"`
+	InternalPort     string `envconfig:"INTERNAL_PORT" default:"50501"`
+	ExternalPort     string `envconfig:"EXTERNAL_PORT" default:"8081"`
+}
+
 func main() {
+	var conf config
+	if err := envconfig.Process("", &conf); err != nil {
+		log.Fatalf("failed to process config: %+v", err)
+	}
+	log.Printf("load config: %+v", conf)
+
+	// TODO: persistent session store
 	sessionStore := gamesession.NewInMemoryStore()
-	allocator, err := newAllocator()
+	metadataStore := game.NewMockMetadataStore()
+	if err := metadataStore.AddGameMetadata(context.Background(), "test-game", &game.Metadata{
+		GameID:  "test-game",
+		Command: "wine /microkiri/microkiri.exe",
+	}); err != nil {
+		log.Fatalf("failed to add metadata: %+v", err)
+	}
+	allocator, err := newAllocator(&conf)
 	if err != nil {
 		log.Fatalf("failed to new allocator: %+v", err)
 	}
-	b := broker.NewBroker(sessionStore, allocator)
+	b := broker.NewBroker(sessionStore, metadataStore, allocator)
 
 	eg := &errgroup.Group{}
 	eg.Go(func() error {
-		return startInternalServer(sessionStore)
+		return startInternalServer(sessionStore, metadataStore, &conf)
 	})
 	eg.Go(func() error {
-		return startExternalServer(b)
+		return startExternalServer(b, &conf)
 	})
 	log.Fatal(eg.Wait())
 }
 
-func startInternalServer(store gamesession.Store) error {
+func startInternalServer(sstore gamesession.Store, mstore game.MetadataStore, conf *config) error {
 	s := grpc.NewServer()
-	proto.RegisterBrokerServer(s, broker.NewInternalServer(store))
+	proto.RegisterBrokerServer(s, broker.NewInternalServer(sstore, mstore))
 
-	addr := ":50501"
-	if p := os.Getenv("INTERNAL_PORT"); p != "" {
-		addr = fmt.Sprintf(":%s", p)
-	}
+	addr := fmt.Sprintf(":%s", conf.InternalPort)
 	lis, err := net.Listen("tcp", addr)
 	if err != nil {
 		return err
@@ -54,22 +77,16 @@ func startInternalServer(store gamesession.Store) error {
 	return nil
 }
 
-func startExternalServer(b *broker.Broker) error {
+func startExternalServer(b *broker.Broker, conf *config) error {
 	http.Handle("/", broker.ExternalServer(b))
-	addr := ":8080"
-	if p := os.Getenv("PORT"); p != "" {
-		addr = fmt.Sprintf(":%s", p)
-	}
+	addr := fmt.Sprintf(":%s", conf.ExternalPort)
 	log.Printf("mashimaro external broker server is listening on %s...", addr)
 	return http.ListenAndServe(addr, nil)
 }
 
-func newAllocator() (gameserver.Allocator, error) {
-	if sa := os.Getenv("GAMESERVER_ADDR"); sa != "" {
-		return &gameserver.MockAllocator{MockedGS: &gameserver.GameServer{Addr: sa}}, nil
+func newAllocator(conf *config) (gameserver.Allocator, error) {
+	if conf.UseMockAllocator {
+		return &gameserver.MockAllocator{MockedGS: &gameserver.GameServer{Name: "dummy", Addr: "dummy"}}, nil
 	}
-
-	addr := "agones-allocator.agones-system.svc.cluster.local.:443"
-	// TODO: current namespace from k8s
-	return gameserver.NewAgonesAllocator(addr, "mashimaro"), nil
+	return gameserver.NewAgonesAllocator(conf.AllocatorAddr, conf.FleetNamespace), nil
 }

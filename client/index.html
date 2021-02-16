@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>mashimaro</title>
+    <style>
+        #remote-video {
+            max-width: 1280px;
+            height: auto;
+        }
+    </style>
+</head>
+<body>
+
+<button onclick="startConn()">New Game</button>
+<video id="remote-video" autoplay playsinline controls></video>
+
+<script src="https://unpkg.com/@open-ayame/ayame-web-sdk@2020.2.1/dist/ayame.min.js"></script>
+<script>
+    let dataChannel = null;
+    const startConn = async () => {
+        const resp = await (await fetch('http://localhost:8081/newgame/test-game', {method: 'POST'})).json();
+        const sid = resp.sessionId;
+        const conn = Ayame.connection('ws://localhost:3000/signaling', sid);
+        conn.options.video.direction = 'recvonly';
+        conn.options.audio.direction = 'recvonly';
+        conn.on('open', async (e) => {
+            dataChannel = await conn.createDataChannel('data', {ordered: false, maxRetransmits: 0});
+            if (dataChannel) {
+                dataChannel.onmessage = onMessage;
+            }
+        })
+        conn.on('datachannel', (channel) => {
+            dataChannel = channel;
+            dataChannel.onmessage = onMessage;
+        })
+        conn.on('disconnect', (e) => {
+            console.log('disconnected', e);
+            dataChannel = null;
+        });
+        conn.on('addstream', (e) => {
+            document.querySelector('#remote-video').srcObject = e.stream;
+        });
+        await conn.connect(null);
+    };
+    const onMessage = (e) => {
+        console.log('message received: ', e.data);
+    }
+    document.querySelector('#remote-video').addEventListener('click', e => {
+        e.preventDefault();
+    })
+    document.querySelector('#remote-video').addEventListener('contextmenu', e => {
+        e.preventDefault();
+    })
+    document.querySelector('#remote-video').addEventListener('mousedown', e => {
+        if (!dataChannel || dataChannel.readyState !== 'open') return;
+        e.preventDefault();
+        const mouseDownMessage = {button: e.button+1} // https://developer.mozilla.org/ja/docs/Web/API/MouseEvent/button
+        dataChannel.send(JSON.stringify({'type': 'mousedown', 'body': mouseDownMessage}))
+    })
+    document.addEventListener('mouseup', e => {
+        if (!dataChannel || dataChannel.readyState !== 'open') return;
+        e.preventDefault();
+        const mouseUpMessage = {button: e.button+1} // https://developer.mozilla.org/ja/docs/Web/API/MouseEvent/button
+        dataChannel.send(JSON.stringify({'type': 'mouseup', 'body': mouseUpMessage}))
+    })
+    document.querySelector('#remote-video').addEventListener('mousemove', e => {
+        if (!dataChannel || dataChannel.readyState !== 'open') return;
+        const moveMessage = {x: e.offsetX, y: e.offsetY}
+        dataChannel.send(JSON.stringify({'type': 'move', 'body': moveMessage}))
+    });
+    document.addEventListener('keydown', (e) => {
+        if (!dataChannel || dataChannel.readyState !== 'open') return;
+        const keyDownMessage = {key: e.key.charCodeAt(0)}
+        dataChannel.send(JSON.stringify({'type': 'keydown', 'body': keyDownMessage}))
+    })
+    document.addEventListener('keyup', (e) => {
+        if (!dataChannel || dataChannel.readyState !== 'open') return;
+        const keyUpMessage = {key: e.key.charCodeAt(0)}
+        dataChannel.send(JSON.stringify({'type': 'keyup', 'body': keyUpMessage}))
+    })
+</script>
+</body>
+</html>

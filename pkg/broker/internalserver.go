@@ -2,6 +2,7 @@ package broker
 
 import (
 	"context"
+	"log"
 
 	"github.com/castaneai/mashimaro/pkg/game"
 	"github.com/castaneai/mashimaro/pkg/gamesession"
@@ -10,11 +11,15 @@ import (
 )
 
 type internalServer struct {
-	sessionStore gamesession.Store
+	sessionStore  gamesession.Store
+	metadataStore game.MetadataStore
 }
 
-func NewInternalServer(sessionStore gamesession.Store) *internalServer {
-	return &internalServer{sessionStore: sessionStore}
+func NewInternalServer(sessionStore gamesession.Store, metadataStore game.MetadataStore) *internalServer {
+	return &internalServer{
+		sessionStore:  sessionStore,
+		metadataStore: metadataStore,
+	}
 }
 
 func (s *internalServer) FindSession(ctx context.Context, req *proto.FindSessionRequest) (*proto.FindSessionResponse, error) {
@@ -25,8 +30,10 @@ func (s *internalServer) FindSession(ctx context.Context, req *proto.FindSession
 	if err != nil {
 		return nil, err
 	}
-	// TODO: metadata store
-	metadata, err := (&game.MockMetadataStore{}).GetGameMetadata(ctx, ss.GameID)
+	log.Printf("found session: %+v", ss)
+
+	log.Printf("Finding metadata by gameID: %s", ss.GameID)
+	metadata, err := s.metadataStore.GetGameMetadata(ctx, ss.GameID)
 	if err != nil {
 		return nil, err
 	}

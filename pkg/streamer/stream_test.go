@@ -1,14 +1,13 @@
-package streamer_test
+package streamer
 
 import (
 	"testing"
 
-	"github.com/castaneai/mashimaro/pkg/streamer"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestGstMediaStream_ReadChunk(t *testing.T) {
-	stream, err := streamer.NewVideoTestStream()
+	stream, err := NewVideoTestStream()
 	assert.NoError(t, err)
 	stream.Start()
 	chunk, err := stream.ReadChunk()

@@ -4,6 +4,7 @@ option go_package = "proto";
 
 service GameWrapper {
   rpc StartGame(StartGameRequest) returns (StartGameResponse) {}
+  rpc ExitGame(ExitGameRequest) returns (ExitGameResponse) {}
 }
 
 message StartGameRequest {
@@ -15,3 +16,7 @@ message StartGameRequest {
 message StartGameResponse {
 
 }
+
+message ExitGameRequest {}
+
+message ExitGameResponse {}
