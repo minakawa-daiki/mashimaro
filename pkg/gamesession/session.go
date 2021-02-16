@@ -1,12 +1,10 @@
 package gamesession
 
-import "github.com/castaneai/mashimaro/pkg/gameserver"
-
 type SessionID string
 
 type Session struct {
-	SessionID  SessionID
-	State      State
-	GameID     string
-	GameServer *gameserver.GameServer
+	SessionID      SessionID `firestore:"sessionId"`
+	State          State     `firestore:"state"`
+	GameID         string    `firestore:"gameId"`
+	GameServerName string    `firestore:"gameServerName"`
 }

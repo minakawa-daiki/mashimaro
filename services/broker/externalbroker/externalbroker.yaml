@@ -2,22 +2,20 @@
 kind: Pod
 apiVersion: v1
 metadata:
-  name: broker
+  name: externalbroker
   labels:
-    component: broker
+    component: externalbroker
 spec:
   containers:
-    - name: broker
-      image: mashimaro/broker
+    - name: externalbroker
+      image: mashimaro/externalbroker
       imagePullPolicy: IfNotPresent
       ports:
         - name: http
           containerPort: 8081
       env:
-        - name: EXTERNAL_PORT
+        - name: PORT
           value: "8081"
-        - name: INTERNAL_PORT
-          value: "50501"
         - name: ALLOCATOR_ADDR
           value: agones-allocator.agones-system.svc.cluster.local.:443
         - name: FLEET_NAMESPACE
@@ -26,18 +24,13 @@ spec:
 kind: Service
 apiVersion: v1
 metadata:
-  name: broker
+  name: externalbroker
   labels:
-    component: broker
+    component: externalbroker
 spec:
   selector:
-    component: broker
+    component: externalbroker
   ports:
-    - name: external
-      protocol: TCP
+    - protocol: TCP
       port: 8081
       targetPort: 8081
-    - name: internal
-      protocol: TCP
-      port: 50501
-      targetPort: 50501

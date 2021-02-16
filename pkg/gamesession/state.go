@@ -1,23 +1,10 @@
 package gamesession
 
-import "fmt"
-
-type State int
-
-func (s State) String() string {
-	switch s {
-	case StateWaitingForSession:
-		return "StateWaitingForSession"
-	case StateSignaling:
-		return "StateSignaling"
-	default:
-		return fmt.Sprintf("Unknown(%d)", s)
-	}
-}
+type State string
 
 const (
-	StateUnknown State = iota
-	StateWaitingForSession
-	StateSignaling
-	StateGameProvisioning
+	StateUnknown           State = "Unknown"
+	StateWaitingForSession State = "WaitingForSession"
+	StateSignaling         State = "Signaling"
+	StateGameProvisioning  State = "Provisioning"
 )

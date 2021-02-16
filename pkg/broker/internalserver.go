@@ -2,9 +2,12 @@ package broker
 
 import (
 	"context"
-	"log"
 
-	"github.com/castaneai/mashimaro/pkg/game"
+	"google.golang.org/grpc/codes"
+
+	"google.golang.org/grpc/status"
+
+	"github.com/castaneai/mashimaro/pkg/gamemetadata"
 	"github.com/castaneai/mashimaro/pkg/gamesession"
 	"github.com/castaneai/mashimaro/pkg/proto"
 	"github.com/goccy/go-yaml"
@@ -12,10 +15,10 @@ import (
 
 type internalServer struct {
 	sessionStore  gamesession.Store
-	metadataStore game.MetadataStore
+	metadataStore gamemetadata.Store
 }
 
-func NewInternalServer(sessionStore gamesession.Store, metadataStore game.MetadataStore) *internalServer {
+func NewInternalServer(sessionStore gamesession.Store, metadataStore gamemetadata.Store) *internalServer {
 	return &internalServer{
 		sessionStore:  sessionStore,
 		metadataStore: metadataStore,
@@ -30,10 +33,10 @@ func (s *internalServer) FindSession(ctx context.Context, req *proto.FindSession
 	if err != nil {
 		return nil, err
 	}
-	log.Printf("found session: %+v", ss)
-
-	log.Printf("Finding metadata by gameID: %s", ss.GameID)
 	metadata, err := s.metadataStore.GetGameMetadata(ctx, ss.GameID)
+	if err == gamemetadata.ErrMetadataNotFound {
+		return nil, status.Newf(codes.FailedPrecondition, "game metadata not found(gameID: %s)", ss.GameID).Err()
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -41,7 +44,7 @@ func (s *internalServer) FindSession(ctx context.Context, req *proto.FindSession
 	if err != nil {
 		return nil, err
 	}
-	if _, err := s.sessionStore.UpdateSessionState(ctx, ss.SessionID, gamesession.StateSignaling); err != nil {
+	if err := s.sessionStore.UpdateSessionState(ctx, ss.SessionID, gamesession.StateSignaling); err != nil {
 		return nil, err
 	}
 	return &proto.FindSessionResponse{

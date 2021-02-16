@@ -1,15 +1,28 @@
 version: "3.6"
 services:
-  broker:
+  firestore:
     build:
       context: .
-      dockerfile: services/broker/Dockerfile
+      dockerfile: services/firestore/Dockerfile
     environment:
-      EXTERNAL_PORT: 8081
-      INTERNAL_PORT: 50501
+      PORT: 8812
+  externalbroker:
+    build:
+      context: .
+      dockerfile: services/broker/externalbroker/Dockerfile
+    environment:
+      PORT: 8081
+      FIRESTORE_EMULATOR_HOST: firestore:8812
       USE_MOCK_ALLOCATOR: 1
     ports:
-    - 8081:8081
+      - 8081:8081
+  internalbroker:
+    build:
+      context: .
+      dockerfile: services/broker/internalbroker/Dockerfile
+    environment:
+      PORT: 50501
+      FIRESTORE_EMULATOR_HOST: firestore:8812
   ayame:
     build: ./services/ayame
     ports:
@@ -20,7 +33,7 @@ services:
       dockerfile: services/gaming/gameagent/Dockerfile
     environment:
       AYAME_LABO_URL: wss://ayame-labo.shiguredo.jp/signaling
-      INTERNAL_BROKER_ADDR: broker:50501
+      INTERNAL_BROKER_ADDR: internalbroker:50501
       GAME_WRAPPER_ADDR: game:50501
       PULSE_ADDR: localhost:4713
       USE_MOCK_ALLOCATOR: 1

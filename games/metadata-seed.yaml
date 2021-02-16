@@ -1,0 +1,5 @@
+seeds:
+  - gameId: notepad
+    command: wine notepad
+  - gameId: microkiri
+    command: wine /games/microkiri/microkiri.exe

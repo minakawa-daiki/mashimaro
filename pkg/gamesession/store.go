@@ -15,7 +15,7 @@ type Store interface {
 	NewSession(ctx context.Context, req *NewSessionRequest) (*Session, error)
 	GetSession(ctx context.Context, sid SessionID) (*Session, error)
 	GetSessionByGameServerName(ctx context.Context, gsName string) (*Session, error)
-	UpdateSessionState(ctx context.Context, sid SessionID, newState State) (*Session, error)
+	UpdateSessionState(ctx context.Context, sid SessionID, newState State) error
 }
 
 type NewSessionRequest struct {
@@ -42,10 +42,10 @@ func NewInMemoryStore() *InMemoryStore {
 func (s *InMemoryStore) NewSession(ctx context.Context, req *NewSessionRequest) (*Session, error) {
 	sid := SessionID(uuid.Must(uuid.NewRandom()).String())
 	ss := &Session{
-		SessionID:  sid,
-		State:      StateWaitingForSession,
-		GameID:     req.GameID,
-		GameServer: req.GameServer,
+		SessionID:      sid,
+		State:          StateWaitingForSession,
+		GameID:         req.GameID,
+		GameServerName: req.GameServer.Name,
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -67,22 +67,22 @@ func (s *InMemoryStore) GetSessionByGameServerName(ctx context.Context, gsName s
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	for _, ss := range s.sessions {
-		if ss.GameServer.Name == gsName {
+		if ss.GameServerName == gsName {
 			return ss, nil
 		}
 	}
 	return nil, ErrSessionNotFound
 }
 
-func (s *InMemoryStore) UpdateSessionState(ctx context.Context, sid SessionID, newState State) (*Session, error) {
+func (s *InMemoryStore) UpdateSessionState(ctx context.Context, sid SessionID, newState State) error {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	for _, ss := range s.sessions {
 		if ss.SessionID == sid {
 			log.Printf("update session state %s -> %s", ss.State, newState)
 			s.sessions[sid].State = newState
-			return ss, nil
+			return nil
 		}
 	}
-	return nil, ErrSessionNotFound
+	return ErrSessionNotFound
 }

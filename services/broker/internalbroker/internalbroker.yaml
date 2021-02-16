@@ -1,0 +1,18 @@
+---
+kind: Pod
+apiVersion: v1
+metadata:
+  name: internalbroker
+  labels:
+    component: internalbroker
+spec:
+  containers:
+    - name: internalbroker
+      image: mashimaro/internalbroker
+      imagePullPolicy: IfNotPresent
+      ports:
+        - name: grpc
+          containerPort: 50501
+      env:
+        - name: PORT
+          value: "50501"

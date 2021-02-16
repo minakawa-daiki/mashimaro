@@ -23,7 +23,7 @@ import (
 
 	"github.com/pion/webrtc/v3"
 
-	"github.com/castaneai/mashimaro/pkg/game"
+	"github.com/castaneai/mashimaro/pkg/gamemetadata"
 	"github.com/goccy/go-yaml"
 
 	"github.com/castaneai/mashimaro/pkg/proto"
@@ -88,7 +88,7 @@ func (a *Agent) Run(ctx context.Context, gsName string) error {
 		return err
 	}
 	sid := gamesession.SessionID(ss.SessionId)
-	var metadata game.Metadata
+	var metadata gamemetadata.Metadata
 	if err := yaml.Unmarshal([]byte(ss.GameMetadata.Body), &metadata); err != nil {
 		return err
 	}
@@ -166,7 +166,7 @@ func (a *Agent) Run(ctx context.Context, gsName string) error {
 	}
 }
 
-func (a *Agent) startGame(ctx context.Context, metadata *game.Metadata) error {
+func (a *Agent) startGame(ctx context.Context, metadata *gamemetadata.Metadata) error {
 	cmds := strings.Split(metadata.Command, " ")
 	var args []string
 	if len(cmds) > 1 {
@@ -195,7 +195,7 @@ func waitForSession(ctx context.Context, c proto.BrokerClient, gsName string) (*
 			if !resp.Found {
 				continue
 			}
-			var metadata game.Metadata
+			var metadata gamemetadata.Metadata
 			if err := yaml.Unmarshal([]byte(resp.Session.GameMetadata.Body), &metadata); err != nil {
 				return nil, err
 			}

@@ -25,7 +25,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/castaneai/mashimaro/pkg/game"
+	"github.com/castaneai/mashimaro/pkg/gamemetadata"
 
 	"github.com/castaneai/mashimaro/pkg/broker"
 	"github.com/castaneai/mashimaro/pkg/gameagent"
@@ -50,7 +50,7 @@ func checkAyame(t *testing.T) {
 	}
 }
 
-func newInternalBrokerClient(t *testing.T, sstore gamesession.Store, mstore game.MetadataStore) proto.BrokerClient {
+func newInternalBrokerClient(t *testing.T, sstore gamesession.Store, mstore gamemetadata.Store) proto.BrokerClient {
 	lis := testutils.ListenTCPWithRandomPort(t)
 	s := grpc.NewServer()
 	proto.RegisterBrokerServer(s, broker.NewInternalServer(sstore, mstore))
@@ -152,12 +152,12 @@ func TestAgent(t *testing.T) {
 		Name: "test-gs",
 		Addr: "dummy",
 	}
-	gameMetadata := &game.Metadata{
+	gameMetadata := &gamemetadata.Metadata{
 		GameID:  "notepad",
 		Command: "wine notepad",
 	}
 	sstore := gamesession.NewInMemoryStore()
-	mstore := game.NewMockMetadataStore()
+	mstore := gamemetadata.NewMockMetadataStore()
 	err := mstore.AddGameMetadata(ctx, gameMetadata.GameID, gameMetadata)
 	assert.NoError(t, err)
 	bc := newInternalBrokerClient(t, sstore, mstore)
@@ -226,12 +226,12 @@ func TestVideoOnBrowser(t *testing.T) {
 		Name: "test-gs",
 		Addr: "dummy",
 	}
-	gameMetadata := &game.Metadata{
+	gameMetadata := &gamemetadata.Metadata{
 		GameID:  "notepad",
 		Command: "wine notepad",
 	}
 	sstore := gamesession.NewInMemoryStore()
-	mstore := game.NewMockMetadataStore()
+	mstore := gamemetadata.NewMockMetadataStore()
 	err := mstore.AddGameMetadata(ctx, gameMetadata.GameID, gameMetadata)
 	assert.NoError(t, err)
 	bc := newInternalBrokerClient(t, sstore, mstore)

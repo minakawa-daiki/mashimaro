@@ -8,7 +8,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/castaneai/mashimaro/pkg/game"
+	"github.com/castaneai/mashimaro/pkg/gamemetadata"
 
 	"github.com/castaneai/mashimaro/pkg/testutils"
 
@@ -26,9 +26,10 @@ type externalBrokerClient struct {
 	hs *httptest.Server
 }
 
-func newExternalBrokerClient(b *Broker) *externalBrokerClient {
+func newExternalBrokerClient(sstore gamesession.Store, mstore gamemetadata.Store, allocator gameserver.Allocator) *externalBrokerClient {
+	s := NewExternalServer(sstore, mstore, allocator)
 	return &externalBrokerClient{
-		httptest.NewServer(ExternalServer(b)),
+		httptest.NewServer(s.Handler()),
 	}
 }
 
@@ -39,7 +40,7 @@ func (ts *externalBrokerClient) NewGame(gameID string) (gamesession.SessionID, e
 		return "", err
 	}
 	defer resp.Body.Close()
-	var newGameResp NewGameResponse
+	var newGameResp newGameResponse
 	dec := json.NewDecoder(resp.Body)
 	if err := dec.Decode(&newGameResp); err != nil {
 		return "", err
@@ -47,7 +48,7 @@ func (ts *externalBrokerClient) NewGame(gameID string) (gamesession.SessionID, e
 	return newGameResp.SessionID, nil
 }
 
-func newInternalBrokerClient(t *testing.T, sstore gamesession.Store, mstore game.MetadataStore) proto.BrokerClient {
+func newInternalBrokerClient(t *testing.T, sstore gamesession.Store, mstore gamemetadata.Store) proto.BrokerClient {
 	lis := testutils.ListenTCPWithRandomPort(t)
 	s := grpc.NewServer()
 	proto.RegisterBrokerServer(s, NewInternalServer(sstore, mstore))
@@ -62,17 +63,17 @@ func newInternalBrokerClient(t *testing.T, sstore gamesession.Store, mstore game
 func TestBroker(t *testing.T) {
 	ctx := context.Background()
 
-	sstore := gamesession.NewInMemoryStore()
-	mstore := game.NewMockMetadataStore()
-	if err := mstore.AddGameMetadata(ctx, "test-game", &game.Metadata{
-		GameID:  "test-game",
+	metadata := &gamemetadata.Metadata{
+		GameID:  "notepad",
 		Command: "wine notepad",
-	}); err != nil {
+	}
+	sstore := gamesession.NewInMemoryStore()
+	mstore := gamemetadata.NewMockMetadataStore()
+	if err := mstore.AddGameMetadata(ctx, metadata.GameID, metadata); err != nil {
 		t.Fatal(err)
 	}
 	gs := &gameserver.GameServer{Name: "dummy", Addr: "dummy-addr"}
 	allocator := gameserver.NewMockAllocator(gs)
-	b := NewBroker(sstore, mstore, allocator)
 
 	ic := newInternalBrokerClient(t, sstore, mstore)
 	{
@@ -82,8 +83,8 @@ func TestBroker(t *testing.T) {
 	}
 
 	// create game session
-	ec := newExternalBrokerClient(b)
-	sid, err := ec.NewGame("test-game")
+	ec := newExternalBrokerClient(sstore, mstore, allocator)
+	sid, err := ec.NewGame(metadata.GameID)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, sid)
 

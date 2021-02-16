@@ -1,5 +1,6 @@
 resources:
-  - services/broker/broker.yaml
+  - services/broker/externalbroker/externalbroker.yaml
+  - services/broker/internalbroker/internalbroker.yaml
   - services/fleet.yaml
 namespace: mashimaro
 secretGenerator:

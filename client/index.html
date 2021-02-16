@@ -20,6 +20,8 @@
         <li><label>Ayame Labo URL: <input id="ayameLaboUrl" type="text" value="wss://ayame-labo.shiguredo.jp/signaling"></label></li>
         <li><label>Ayame Labo Key: <input id="ayameLaboSignalingKey" type="text" value=""></label></li>
         <li><label>Ayame Labo Account: <input id="ayameLaboAccount" type="text" value=""></label></li>
+        <li><label>External Broker Server: <input id="externalBrokerServer" type="text" value="http://localhost:8081"></label></li>
+        <li><label>Game ID: <input id="gameId" type="text" value="microkiri"></label></li>
     </ul>
 </div>
 <button onclick="startConn()">New Game</button>
@@ -29,7 +31,9 @@
 <script>
     let dataChannel = null;
     const startConn = async () => {
-        const resp = await (await fetch('http://localhost:8081/newgame/test-game', {method: 'POST'})).json();
+        const externalBrokerServer = document.querySelector('#externalBrokerServer').value
+        const gameId = document.querySelector('#gameId').value
+        const resp = await (await fetch(`${externalBrokerServer}/newgame/${gameId}`, {method: 'POST'})).json();
         const sid = resp.sessionId;
         const ayameLaboUrl = document.querySelector('#ayameLaboUrl').value
         const ayameLaboSignalingKey = document.querySelector('#ayameLaboSignalingKey').value
