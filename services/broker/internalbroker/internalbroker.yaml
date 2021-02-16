@@ -16,3 +16,16 @@ spec:
       env:
         - name: PORT
           value: "50501"
+        - name: FIRESTORE_EMULATOR_HOST
+          value: firestore.mashimaro.svc.cluster.local.:8812
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: internalbroker
+  labels:
+    component: internalbroker
+spec:
+  clusterIP: None
+  selector:
+    component: internalbroker

@@ -40,7 +40,7 @@ spec:
                       name: ayame-labo-secrets
                       key: AYAME_LABO_GITHUB_ACCOUNT
                 - name: INTERNAL_BROKER_ADDR
-                  value: broker.mashimaro.svc.cluster.local.:50501
+                  value: internalbroker.mashimaro.svc.cluster.local.:50501
                 - name: GAME_WRAPPER_ADDR
                   value: localhost:50501
                 - name: PULSE_ADDR

@@ -20,6 +20,8 @@ spec:
           value: agones-allocator.agones-system.svc.cluster.local.:443
         - name: FLEET_NAMESPACE
           value: mashimaro
+        - name: FIRESTORE_EMULATOR_HOST
+          value: firestore.mashimaro.svc.cluster.local.:8812
 ---
 kind: Service
 apiVersion: v1

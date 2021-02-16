@@ -1,0 +1,29 @@
+---
+kind: Pod # TODO: statefulset
+apiVersion: v1
+metadata:
+  name: firestore
+  labels:
+    component: firestore
+spec:
+  containers:
+    - name: firestore
+      image: mashimaro/firestore
+      imagePullPolicy: IfNotPresent
+      ports:
+        - name: firestore
+          containerPort: 8812
+      env:
+        - name: PORT
+          value: "8812"
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: firestore
+  labels:
+    component: firestore
+spec:
+  clusterIP: None
+  selector:
+    component: firestore

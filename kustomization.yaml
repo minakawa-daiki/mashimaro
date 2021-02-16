@@ -1,4 +1,5 @@
 resources:
+  - services/firestore/firestore.yaml
   - services/broker/externalbroker/externalbroker.yaml
   - services/broker/internalbroker/internalbroker.yaml
   - services/fleet.yaml

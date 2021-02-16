@@ -2,10 +2,14 @@ apiVersion: skaffold/v2beta10
 kind: Config
 build:
   artifacts:
-    - image: mashimaro/broker
+    - image: mashimaro/externalbroker
       context: .
       docker:
-        dockerfile: services/broker/Dockerfile
+        dockerfile: services/broker/externalbroker/Dockerfile
+    - image: mashimaro/internalbroker
+      context: .
+      docker:
+        dockerfile: services/broker/internalbroker/Dockerfile
     - image: mashimaro/gameagent
       context: .
       docker:
@@ -18,6 +22,10 @@ build:
       context: services/gaming/pulseaudio
       docker:
         dockerfile: Dockerfile
+    - image: mashimaro/firestore
+      context: .
+      docker:
+        dockerfile: services/firestore/Dockerfile
   local:
     useBuildkit: true
 deploy:
