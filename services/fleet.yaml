@@ -20,8 +20,16 @@ spec:
             - name: gameagent
               image: mashimaro/gameagent
               env:
-                - name: AYAME_URL
-                  value: ws://ayame.mashimaro.svc.cluster.local.:3000/signal"
+                - name: AYAME_ADDR
+                  value: ws://ayame.mashimaro.svc.cluster.local.:3000/signal
+                - name: INTERNAL_BROKER_ADDR
+                  value: broker.mashimaro.svc.cluster.local.:50501
+                - name: GAME_WRAPPER_ADDR
+                  value: localhost:50501
+                - name: PULSE_ADDR
+                  value: localhost:4713
+                - name: DISPLAY
+                  value: ":0"
             - name: game
               image: mashimaro/game
               env:
@@ -31,8 +39,3 @@ spec:
                   value: localhost:4713
             - name: pulseaudio
               image: mashimaro/pulseaudio
-            - name: xserver
-              image: mashimaro/xserver
-              env:
-                - name: DISPLAY
-                  value: ":0"

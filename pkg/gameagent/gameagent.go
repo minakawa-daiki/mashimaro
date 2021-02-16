@@ -2,7 +2,6 @@ package gameagent
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"strings"
 	"time"
@@ -10,10 +9,6 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/castaneai/mashimaro/pkg/streamer"
-
-	"github.com/pion/webrtc/v3/pkg/media"
-
-	"golang.org/x/sync/errgroup"
 
 	"github.com/castaneai/mashimaro/pkg/ayame"
 
@@ -66,8 +61,25 @@ func (a *Agent) Run(ctx context.Context, gsName string, mediaTracks *MediaTracks
 	log.Printf("[agent] load metadata: %+v", metadata)
 
 	// TODO: provisioning game data and ready to start process
+	log.Printf("--- (TODO) provisioning game...")
 
+	dataChannelCh := make(chan *webrtc.DataChannel)
+	dataChannelMessageCh := make(chan webrtc.DataChannelMessage)
 	ayamec := ayame.NewClient(ayame.WithInitPeerConnection(func(pc *webrtc.PeerConnection) error {
+		pc.OnDataChannel(func(dc *webrtc.DataChannel) {
+			dc.OnOpen(func() {
+				dataChannelCh <- dc
+			})
+			dc.OnError(func(err error) {
+				log.Printf("data channel error: %+v", err)
+			})
+			dc.OnClose(func() {
+				log.Printf("data channel closed")
+			})
+			dc.OnMessage(func(msg webrtc.DataChannelMessage) {
+				dataChannelMessageCh <- msg
+			})
+		})
 		if _, err := pc.AddTrack(mediaTracks.VideoTrack); err != nil {
 			return err
 		}
@@ -86,9 +98,43 @@ func (a *Agent) Run(ctx context.Context, gsName string, mediaTracks *MediaTracks
 	}
 	// TODO: connection timed out
 	<-connected
-
 	log.Printf("[agent] connected!")
 
+	if err := a.startGame(ctx, &metadata); err != nil {
+		return err
+	}
+
+	dataChannel := <-dataChannelCh
+	log.Printf("dataChannel %s-%d opened", dataChannel.Label(), dataChannel.ID())
+
+	videoStream, err := streamer.NewX11VideoStream(a.streamingConfig.XDisplay)
+	if err != nil {
+		return errors.Wrap(err, "failed to get x11 video stream")
+	}
+	audioStream, err := streamer.NewPulseAudioStream(a.streamingConfig.PulseAddr)
+	if err != nil {
+		return errors.Wrap(err, "failed to get pulse audio stream")
+	}
+
+	streamingErr := make(chan error)
+	go func() {
+		log.Printf("start streaming media")
+		streamingErr <- startStreaming(ctx, mediaTracks.VideoTrack, mediaTracks.AudioTrack, videoStream, audioStream)
+	}()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case err := <-streamingErr:
+			return errors.Wrap(err, "failed to streaming media")
+		case msg := <-dataChannelMessageCh:
+			log.Printf("msg received: %+v", string(msg.Data))
+		}
+	}
+}
+
+func (a *Agent) startGame(ctx context.Context, metadata *game.Metadata) error {
 	cmds := strings.Split(metadata.Command, " ")
 	var args []string
 	if len(cmds) > 1 {
@@ -100,35 +146,7 @@ func (a *Agent) Run(ctx context.Context, gsName string, mediaTracks *MediaTracks
 	}); err != nil {
 		return errors.Wrap(err, "failed to start game")
 	}
-
-	videoStream, err := streamer.NewX11VideoStream(a.streamingConfig.XDisplay)
-	if err != nil {
-		return errors.Wrap(err, "failed to get x11 video stream")
-	}
-	defer videoStream.Close()
-	audioStream, err := streamer.NewPulseAudioStream(a.streamingConfig.PulseAddr)
-	if err != nil {
-		return errors.Wrap(err, "failed to get pulse audio stream")
-	}
-	defer audioStream.Close()
-
-	log.Printf("start streaming media")
-	videoStream.Start()
-	audioStream.Start()
-	eg := &errgroup.Group{}
-	eg.Go(func() error {
-		if err := startStreamingMedia(ctx, mediaTracks.VideoTrack, videoStream); err != nil {
-			return errors.Wrap(err, "failed to stream video")
-		}
-		return nil
-	})
-	eg.Go(func() error {
-		if err := startStreamingMedia(ctx, mediaTracks.AudioTrack, audioStream); err != nil {
-			return errors.Wrap(err, "failed to stream audio")
-		}
-		return nil
-	})
-	return eg.Wait()
+	return nil
 }
 
 func waitForSession(ctx context.Context, c proto.BrokerClient, gsName string) (*proto.Session, error) {
@@ -136,6 +154,7 @@ func waitForSession(ctx context.Context, c proto.BrokerClient, gsName string) (*
 	for {
 		select {
 		case <-ctx.Done():
+			return nil, ctx.Err()
 		case <-ticker.C:
 			resp, err := c.FindSession(ctx, &proto.FindSessionRequest{GameserverName: gsName})
 			if err != nil {
@@ -150,26 +169,6 @@ func waitForSession(ctx context.Context, c proto.BrokerClient, gsName string) (*
 			}
 			log.Printf("found session(sid: %s, gameId: %s)", resp.Session.SessionId, metadata.GameID)
 			return resp.Session, nil
-		}
-	}
-}
-
-func startStreamingMedia(ctx context.Context, track *webrtc.TrackLocalStaticSample, stream streamer.MediaStream) error {
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
-			chunk, err := stream.ReadChunk()
-			if err != nil {
-				return fmt.Errorf("failed to read chunk from stream: %+v", err)
-			}
-			if err := track.WriteSample(media.Sample{
-				Data:     chunk.Data,
-				Duration: chunk.Duration,
-			}); err != nil {
-				return fmt.Errorf("failed to write sample to track: %+v", err)
-			}
 		}
 	}
 }

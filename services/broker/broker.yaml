@@ -15,8 +15,12 @@ spec:
         - name: http
           containerPort: 8081
       env:
-        - name: PORT
+        - name: EXTERNAL_PORT
           value: "8081"
         - name: INTERNAL_PORT
           value: "50501"
+        - name: ALLOCATOR_ADDR
+          value: agones-allocator.agones-system.svc.cluster.local.:443
+        - name: FLEET_NAMESPACE
+          value: mashimaro
 ---

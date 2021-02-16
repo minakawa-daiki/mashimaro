@@ -60,10 +60,28 @@ func TestPlaying(t *testing.T) {
 	sid, err := newGame("test-game")
 	assert.NoError(t, err)
 
+	dcCh := make(chan *webrtc.DataChannel)
 	videoTrackCh := make(chan *webrtc.TrackRemote)
 	audioTrackCh := make(chan *webrtc.TrackRemote)
 
 	pcOffer := ayame.NewClient(ayame.WithInitPeerConnection(func(pc *webrtc.PeerConnection) error {
+		dc, err := pc.CreateDataChannel("data", nil)
+		if err != nil {
+			return err
+		}
+		log.Printf("data channel created: %+v", dc)
+		dc.OnOpen(func() {
+			dcCh <- dc
+		})
+		dc.OnError(func(err error) {
+			log.Printf("data channel error: %+v", err)
+		})
+		dc.OnClose(func() {
+			log.Printf("data channel closed: %+v", dc)
+		})
+		dc.OnMessage(func(msg webrtc.DataChannelMessage) {
+			log.Printf("data channel msg received: %+v", msg)
+		})
 		pc.OnTrack(func(remote *webrtc.TrackRemote, receiver *webrtc.RTPReceiver) {
 			log.Printf("remote track found: %+v", remote)
 			switch remote.Kind() {
@@ -96,6 +114,10 @@ func TestPlaying(t *testing.T) {
 	}
 	<-connected
 	log.Printf("player connected!")
+
+	dc := <-dcCh
+	log.Printf("datachannel opened")
+	assert.NoError(t, dc.SendText("hello"))
 
 	videoTrack := <-videoTrackCh
 	videoRTP, _, err := videoTrack.ReadRTP()

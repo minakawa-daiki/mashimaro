@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"sync"
 	"time"
 
 	"github.com/notedit/gst"
@@ -24,6 +25,7 @@ type gstStream struct {
 	pipelineStr string
 	gstPipeline *gst.Pipeline
 	gstElement  *gst.Element
+	mu          sync.Mutex
 }
 
 func newGstStream(pipelineStr, sinkName string) (*gstStream, error) {
@@ -41,11 +43,15 @@ func newGstStream(pipelineStr, sinkName string) (*gstStream, error) {
 
 func (s *gstStream) Start() {
 	log.Printf("Starting GStreamer pipeline: %s", s.pipelineStr)
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.gstPipeline.SetState(gst.StatePlaying)
 }
 
 func (s *gstStream) Close() error {
 	log.Printf("Stopping GStreamer pipeline: %s", s.pipelineStr)
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.gstPipeline.SetState(gst.StateNull)
 	return nil
 }
