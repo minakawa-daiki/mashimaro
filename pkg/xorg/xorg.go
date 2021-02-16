@@ -10,7 +10,6 @@ import "C"
 
 import (
 	"fmt"
-	"regexp"
 	"sync"
 	"time"
 	"unsafe"
@@ -199,20 +198,6 @@ func GetScreenSize() *ScreenSize {
 	}
 
 	return nil
-}
-
-func SetKeyboardLayout(layout string) {
-	mu.Lock()
-	defer mu.Unlock()
-
-	if !regexp.MustCompile(`^[a-zA-Z]+$`).MatchString(layout) {
-		return
-	}
-
-	layoutUnsafe := C.CString(layout)
-	defer C.free(unsafe.Pointer(layoutUnsafe))
-
-	C.SetKeyboardLayout(layoutUnsafe)
 }
 
 //export goCreateScreenSize

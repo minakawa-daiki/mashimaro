@@ -5,6 +5,9 @@ import (
 	"log"
 	"net"
 
+	"github.com/castaneai/mashimaro/pkg/proto"
+	"google.golang.org/grpc"
+
 	"github.com/castaneai/mashimaro/pkg/gamewrapper"
 	"github.com/kelseyhightower/envconfig"
 )
@@ -25,6 +28,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	w := gamewrapper.GameWrapper{}
-	log.Fatal(w.Run(lis))
+	s := grpc.NewServer()
+	proto.RegisterGameWrapperServer(s, gamewrapper.NewGameWrapperServer())
+	log.Fatal(s.Serve(lis))
 }

@@ -1,10 +1,13 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net"
 	"net/http"
+
+	"github.com/castaneai/mashimaro/pkg/game"
 
 	"github.com/kelseyhightower/envconfig"
 
@@ -35,15 +38,22 @@ func main() {
 
 	// TODO: persistent session store
 	sessionStore := gamesession.NewInMemoryStore()
+	metadataStore := game.NewMockMetadataStore()
+	if err := metadataStore.AddGameMetadata(context.Background(), "test-game", &game.Metadata{
+		GameID:  "test-game",
+		Command: "wine /microkiri/microkiri.exe",
+	}); err != nil {
+		log.Fatalf("failed to add metadata: %+v", err)
+	}
 	allocator, err := newAllocator(&conf)
 	if err != nil {
 		log.Fatalf("failed to new allocator: %+v", err)
 	}
-	b := broker.NewBroker(sessionStore, allocator)
+	b := broker.NewBroker(sessionStore, metadataStore, allocator)
 
 	eg := &errgroup.Group{}
 	eg.Go(func() error {
-		return startInternalServer(sessionStore, &conf)
+		return startInternalServer(sessionStore, metadataStore, &conf)
 	})
 	eg.Go(func() error {
 		return startExternalServer(b, &conf)
@@ -51,9 +61,9 @@ func main() {
 	log.Fatal(eg.Wait())
 }
 
-func startInternalServer(store gamesession.Store, conf *config) error {
+func startInternalServer(sstore gamesession.Store, mstore game.MetadataStore, conf *config) error {
 	s := grpc.NewServer()
-	proto.RegisterBrokerServer(s, broker.NewInternalServer(store))
+	proto.RegisterBrokerServer(s, broker.NewInternalServer(sstore, mstore))
 
 	addr := fmt.Sprintf(":%s", conf.InternalPort)
 	lis, err := net.Listen("tcp", addr)

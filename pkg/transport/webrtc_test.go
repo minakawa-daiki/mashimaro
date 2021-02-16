@@ -35,25 +35,42 @@ func signalPair(pcOffer, pcAnswer *webrtc.PeerConnection) error {
 	return pcOffer.SetRemoteDescription(*pcAnswer.LocalDescription())
 }
 
-func signalStreamerPlayer(t *testing.T, wc webrtc.Configuration) (streamer *WebRTCStreamerConn, player *WebRTCPlayerConn) {
-	streamerConnected := make(chan struct{})
+func newStreamerConn(t *testing.T, wc webrtc.Configuration) *WebRTCStreamerConn {
 	streamer, err := NewWebRTCStreamerConn(wc)
 	if err != nil {
 		t.Fatal(err)
 	}
-	streamer.OnConnect(func() {
-		close(streamerConnected)
-	})
-	playerConnected := make(chan struct{})
-	player, err = NewWebRTCPlayerConn(wc)
+	return streamer
+}
+
+func newPlayerConn(t *testing.T, wc webrtc.Configuration) *WebRTCPlayerConn {
+	player, err := NewWebRTCPlayerConn(wc)
 	if err != nil {
 		t.Fatal(err)
 	}
+	return player
+}
+
+func signalStreamerPlayer(t *testing.T, wc webrtc.Configuration, isPlayerOffer bool) (streamer *WebRTCStreamerConn, player *WebRTCPlayerConn) {
+	streamer = newStreamerConn(t, wc)
+	streamerConnected := make(chan struct{})
+	streamer.OnConnect(func() {
+		close(streamerConnected)
+	})
+
+	player = newPlayerConn(t, wc)
+	playerConnected := make(chan struct{})
 	player.OnConnect(func() {
 		close(playerConnected)
 	})
-	if err := signalPair(player.pc, streamer.pc); err != nil {
-		t.Fatal(err)
+	if isPlayerOffer {
+		if err := signalPair(player.PeerConnection(), streamer.PeerConnection()); err != nil {
+			t.Fatal(err)
+		}
+	} else {
+		if err := signalPair(streamer.PeerConnection(), player.PeerConnection()); err != nil {
+			t.Fatal(err)
+		}
 	}
 	<-streamerConnected
 	<-playerConnected
@@ -61,27 +78,38 @@ func signalStreamerPlayer(t *testing.T, wc webrtc.Configuration) (streamer *WebR
 }
 
 func TestMessaging(t *testing.T) {
-	streamer, player := signalStreamerPlayer(t, webrtc.Configuration{})
-	assert.NotNil(t, streamer)
-	assert.NotNil(t, player)
-
-	streamerReceived := make(chan []byte)
-	streamer.OnMessage(func(data []byte) {
-		streamerReceived <- data
-	})
-	playerReceived := make(chan []byte)
-	player.OnMessage(func(data []byte) {
-		playerReceived <- data
-	})
-	ctx := context.Background()
-
-	if err := player.SendMessage(ctx, []byte("hello")); err != nil {
-		t.Fatal(err)
+	tcs := []struct {
+		name          string
+		isPlayerOffer bool
+	}{
+		{name: "OfferByPlayer", isPlayerOffer: true},
+		{name: "OfferByStreamer", isPlayerOffer: false},
 	}
-	assert.Equal(t, []byte("hello"), <-streamerReceived)
+	for _, tc := range tcs {
+		t.Run(tc.name, func(t *testing.T) {
+			streamer, player := signalStreamerPlayer(t, webrtc.Configuration{}, tc.isPlayerOffer)
+			assert.NotNil(t, streamer)
+			assert.NotNil(t, player)
+			streamerReceived := make(chan []byte)
+			streamer.OnMessage(func(data []byte) {
+				streamerReceived <- data
+			})
+			playerReceived := make(chan []byte)
+			player.OnMessage(func(data []byte) {
+				playerReceived <- data
+			})
+			ctx := context.Background()
 
-	if err := streamer.SendMessage(ctx, []byte("hello2")); err != nil {
-		t.Fatal(err)
+			if err := player.SendMessage(ctx, []byte("hello")); err != nil {
+				t.Fatal(err)
+			}
+			assert.Equal(t, []byte("hello"), <-streamerReceived)
+
+			if err := streamer.SendMessage(ctx, []byte("hello2")); err != nil {
+				t.Fatal(err)
+			}
+			assert.Equal(t, []byte("hello2"), <-playerReceived)
+		})
 	}
-	assert.Equal(t, []byte("hello2"), <-playerReceived)
+
 }

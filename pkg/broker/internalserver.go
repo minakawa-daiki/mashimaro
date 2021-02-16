@@ -11,15 +11,18 @@ import (
 )
 
 type internalServer struct {
-	sessionStore gamesession.Store
+	sessionStore  gamesession.Store
+	metadataStore game.MetadataStore
 }
 
-func NewInternalServer(sessionStore gamesession.Store) *internalServer {
-	return &internalServer{sessionStore: sessionStore}
+func NewInternalServer(sessionStore gamesession.Store, metadataStore game.MetadataStore) *internalServer {
+	return &internalServer{
+		sessionStore:  sessionStore,
+		metadataStore: metadataStore,
+	}
 }
 
 func (s *internalServer) FindSession(ctx context.Context, req *proto.FindSessionRequest) (*proto.FindSessionResponse, error) {
-	log.Printf("Finding session by gsName: %s", req.GameserverName)
 	ss, err := s.sessionStore.GetSessionByGameServerName(ctx, req.GameserverName)
 	if err == gamesession.ErrSessionNotFound {
 		return &proto.FindSessionResponse{Found: false}, nil
@@ -29,9 +32,8 @@ func (s *internalServer) FindSession(ctx context.Context, req *proto.FindSession
 	}
 	log.Printf("found session: %+v", ss)
 
-	// TODO: metadata store
 	log.Printf("Finding metadata by gameID: %s", ss.GameID)
-	metadata, err := (&game.MockMetadataStore{}).GetGameMetadata(ctx, ss.GameID)
+	metadata, err := s.metadataStore.GetGameMetadata(ctx, ss.GameID)
 	if err != nil {
 		return nil, err
 	}

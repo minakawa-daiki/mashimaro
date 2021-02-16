@@ -2,8 +2,12 @@ package game
 
 import (
 	"context"
+	"errors"
+	"sync"
+)
 
-	"github.com/goccy/go-yaml"
+var (
+	ErrMetadataNotFound = errors.New("session not found")
 )
 
 type MetadataStore interface {
@@ -11,16 +15,29 @@ type MetadataStore interface {
 }
 
 type MockMetadataStore struct {
+	metadatas map[string]*Metadata
+	mu        sync.RWMutex
+}
+
+func NewMockMetadataStore() *MockMetadataStore {
+	return &MockMetadataStore{
+		metadatas: make(map[string]*Metadata),
+	}
+}
+
+func (s *MockMetadataStore) AddGameMetadata(ctx context.Context, gameID string, metadata *Metadata) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.metadatas[gameID] = metadata
+	return nil
 }
 
 func (s *MockMetadataStore) GetGameMetadata(ctx context.Context, gameID string) (*Metadata, error) {
-	body := []byte(`
-gameId: microkiri
-command: wine /microkiri/microkiri.exe
-`)
-	var metadata Metadata
-	if err := yaml.Unmarshal(body, &metadata); err != nil {
-		return nil, err
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	m, ok := s.metadatas[gameID]
+	if !ok {
+		return nil, ErrMetadataNotFound
 	}
-	return &metadata, nil
+	return m, nil
 }

@@ -38,8 +38,9 @@ func main() {
 	if conf.UseMockAllocator {
 		gameServerName = "dummy"
 	}
+	var agones *sdk.SDK
 	if isRunningOnKubernetes() {
-		agones := setupAgones()
+		agones = setupAgones()
 		gs, err := agones.GameServer()
 		if err != nil {
 			log.Fatalf("failed to get agones GameServer: %+v", err)
@@ -63,20 +64,21 @@ func main() {
 	}
 	gwClient := proto.NewGameWrapperClient(gwCC)
 
-	signalingConfig := &gameagent.SignalingConfig{
-		AyameURL: conf.AyameAddr,
-	}
+	signaler := gameagent.NewAyameSignaler(conf.AyameAddr)
 	streamingConfig := &gameagent.StreamingConfig{
 		XDisplay:  conf.XDisplay,
 		PulseAddr: conf.PulseAddr,
 	}
-	agent := gameagent.NewAgent(brokerClient, gwClient, signalingConfig, streamingConfig)
-	ctx := context.Background()
-	tracks, err := gameagent.NewMediaTracks()
-	if err != nil {
-		log.Fatalf("failed to get media tracks: %+v", err)
+	agent := gameagent.NewAgent(brokerClient, gwClient, signaler, streamingConfig)
+	if agones != nil {
+		agent.OnExit(func() {
+			if err := agones.Shutdown(); err != nil {
+				log.Printf("failed to send shutdown to Agones SDK: %+v", err)
+			}
+		})
 	}
-	if err := agent.Run(ctx, gameServerName, tracks); err != nil {
+	ctx := context.Background()
+	if err := agent.Run(ctx, gameServerName); err != nil {
 		log.Fatalf("failed to run agent: %+v", err)
 	}
 }
