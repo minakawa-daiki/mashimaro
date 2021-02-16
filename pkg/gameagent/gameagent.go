@@ -30,7 +30,8 @@ import (
 )
 
 const (
-	msgChBufferSize = 50
+	defaultX264Params = "speed-preset=ultrafast tune=zerolatency byte-stream=true intra-refresh=true"
+	msgChBufferSize   = 50
 )
 
 var (
@@ -50,9 +51,15 @@ type Agent struct {
 type StreamingConfig struct {
 	XDisplay  string
 	PulseAddr string
+
+	X264Params   string
+	DisableAudio bool
 }
 
 func NewAgent(brokerClient proto.BrokerClient, gameWrapperClient proto.GameWrapperClient, signaler Signaler, streamingConfig *StreamingConfig) *Agent {
+	if streamingConfig.X264Params == "" {
+		streamingConfig.X264Params = defaultX264Params
+	}
 	return &Agent{
 		brokerClient:      brokerClient,
 		gameWrapperClient: gameWrapperClient,
@@ -111,27 +118,35 @@ func (a *Agent) Run(ctx context.Context, gsName string) error {
 		return err
 	}
 
-	videoStream, err := streamer.NewX11VideoStream(a.streamingConfig.XDisplay)
+	videoStream, err := streamer.NewX11VideoStream(a.streamingConfig.XDisplay, a.streamingConfig.X264Params)
 	if err != nil {
 		return errors.Wrap(err, "failed to get x11 video stream")
 	}
-	audioStream, err := streamer.NewPulseAudioStream(a.streamingConfig.PulseAddr)
-	if err != nil {
-		return errors.Wrap(err, "failed to get pulse audio stream")
-	}
-
-	streamingErr := make(chan error)
+	defer videoStream.Close()
 	go func() {
-		log.Printf("start streaming media")
-		streamingErr <- startStreaming(ctx, conn, videoStream, audioStream)
+		videoStream.Start()
+		if err := startSendingVideoToConn(ctx, conn, videoStream); err != nil {
+			log.Printf("failed to send video: %+v", err)
+		}
 	}()
+	if !a.streamingConfig.DisableAudio {
+		audioStream, err := streamer.NewPulseAudioStream(a.streamingConfig.PulseAddr)
+		if err != nil {
+			return errors.Wrap(err, "failed to get pulse audio stream")
+		}
+		defer audioStream.Close()
+		go func() {
+			audioStream.Start()
+			if err := startSendingAudioToConn(ctx, conn, audioStream); err != nil {
+				log.Printf("failed to send audio: %+v", err)
+			}
+		}()
+	}
 
 	for {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case err := <-streamingErr:
-			return errors.Wrap(err, "failed to streaming media")
 		case msg := <-msgCh:
 			if err := a.handleMessage(ctx, msg); err != nil {
 				if errors.Is(err, ErrGameExited) {

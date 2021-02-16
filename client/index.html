@@ -6,6 +6,12 @@
           content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <title>mashimaro</title>
+    <style>
+        #remote-video {
+            max-width: 1280px;
+            height: auto;
+        }
+    </style>
 </head>
 <body>
 
@@ -44,6 +50,9 @@
         console.log('message received: ', e.data);
     }
     document.querySelector('#remote-video').addEventListener('click', e => {
+        e.preventDefault();
+    })
+    document.querySelector('#remote-video').addEventListener('contextmenu', e => {
         e.preventDefault();
     })
     document.querySelector('#remote-video').addEventListener('mousedown', e => {

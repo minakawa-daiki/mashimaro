@@ -7,8 +7,11 @@ import (
 	"log"
 	"net"
 	"net/url"
+	"os"
 	"testing"
 	"time"
+
+	"github.com/sclevine/agouti"
 
 	"github.com/castaneai/mashimaro/pkg/xorg"
 
@@ -160,8 +163,10 @@ func TestAgent(t *testing.T) {
 	bc := newInternalBrokerClient(t, sstore, mstore)
 	gwc := newGameWrapperClient(t)
 	signaler := gameagent.NewAyameSignaler(ayameURL)
+
+	display := os.Getenv("DISPLAY")
 	streamingConfig := &gameagent.StreamingConfig{
-		XDisplay:  ":0",
+		XDisplay:  display,
 		PulseAddr: "localhost:4713",
 	}
 	ss, err := sstore.NewSession(ctx, &gamesession.NewSessionRequest{
@@ -210,4 +215,66 @@ func TestAgent(t *testing.T) {
 	time.Sleep(1 * time.Second)
 	sendExitGameMessage(t, conn)
 	<-agentExited
+}
+
+func TestVideoOnBrowser(t *testing.T) {
+	t.Skip("comment out this line if you want test video quality on browser(chromedriver required in your PATH)")
+	checkAyame(t)
+
+	ctx := context.Background()
+	gameServer := &gameserver.GameServer{
+		Name: "test-gs",
+		Addr: "dummy",
+	}
+	gameMetadata := &game.Metadata{
+		GameID:  "notepad",
+		Command: "wine notepad",
+	}
+	sstore := gamesession.NewInMemoryStore()
+	mstore := game.NewMockMetadataStore()
+	err := mstore.AddGameMetadata(ctx, gameMetadata.GameID, gameMetadata)
+	assert.NoError(t, err)
+	bc := newInternalBrokerClient(t, sstore, mstore)
+	gwc := newGameWrapperClient(t)
+	signaler := gameagent.NewAyameSignaler(ayameURL)
+
+	display := os.Getenv("DISPLAY")
+	streamingConfig := &gameagent.StreamingConfig{
+		XDisplay:     display,
+		X264Params:   fmt.Sprintf(`speed-preset=ultrafast tune=zerolatency byte-stream=true intra-refresh=true`),
+		DisableAudio: true,
+	}
+	ss, err := sstore.NewSession(ctx, &gamesession.NewSessionRequest{
+		GameID:     gameMetadata.GameID,
+		GameServer: gameServer,
+	})
+	assert.NoError(t, err)
+	agent := gameagent.NewAgent(bc, gwc, signaler, streamingConfig)
+	agentExited := make(chan struct{})
+	agent.OnExit(func() {
+		close(agentExited)
+	})
+	log.Printf("%s", ss.SessionID)
+
+	driver := agouti.ChromeDriver(agouti.ChromeOptions("args", []string{"--no-sandbox"}))
+	assert.NoError(t, driver.Start())
+	t.Cleanup(func() {
+		_ = driver.Stop()
+	})
+
+	page, err := driver.NewPage()
+	assert.NoError(t, err)
+	wd, err := os.Getwd()
+	assert.NoError(t, err)
+	assert.NoError(t, page.Navigate(fmt.Sprintf("file://%s/test.html", wd)))
+	var result string
+	assert.NoError(t, page.RunScript(fmt.Sprintf("startConn('%s')", ss.SessionID), map[string]interface{}{}, &result))
+	assert.NoError(t, page.Click(agouti.SingleClick, agouti.LeftButton)) // to avoid "play() failed because the user didn't interact with the document first"
+
+	go func() {
+		if err := agent.Run(ctx, gameServer.Name); err != nil {
+			log.Printf("failed to run game agent: %+v", err)
+		}
+	}()
+	select {}
 }
