@@ -1,6 +1,6 @@
 # mashimaro
 
-A simple PoC of cloud gaming.
+Open Source Cloud Gaming platform with WebRTC, Wine and Kubernetes.
 
 ## Getting Started
 
@@ -20,7 +20,7 @@ vi .env # Put your secrets
 - helm
 - skaffold
 - kustomize
-- nodejs
+- npm
 
 ```sh
 make up   # setup kubernetes cluster
@@ -33,7 +33,7 @@ make down # shutdown cluster
 ### Installation on local docker-compose
 
 - docker-compose
-- nodejs
+- npm
   
   
 ```sh
@@ -42,6 +42,18 @@ make web             # open client on web browser
 
 docker-compose down
 ```
+
+
+## Architecture
+
+### Creating Game Session
+
+![](./docs/allocating.drawio.svg)
+
+### Playing Game
+
+![](./docs/gameplaying.drawio.svg)
+
 
 ## Contributing
 
