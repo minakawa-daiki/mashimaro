@@ -68,7 +68,7 @@ func TestBroker(t *testing.T) {
 		Command: "wine notepad",
 	}
 	sstore := gamesession.NewInMemoryStore()
-	mstore := gamemetadata.NewMockMetadataStore()
+	mstore := gamemetadata.NewInMemoryMetadataStore()
 	if err := mstore.AddGameMetadata(ctx, metadata.GameID, metadata); err != nil {
 		t.Fatal(err)
 	}

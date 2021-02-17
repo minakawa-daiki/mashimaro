@@ -157,7 +157,7 @@ func TestAgent(t *testing.T) {
 		Command: "wine notepad",
 	}
 	sstore := gamesession.NewInMemoryStore()
-	mstore := gamemetadata.NewMockMetadataStore()
+	mstore := gamemetadata.NewInMemoryMetadataStore()
 	err := mstore.AddGameMetadata(ctx, gameMetadata.GameID, gameMetadata)
 	assert.NoError(t, err)
 	bc := newInternalBrokerClient(t, sstore, mstore)
@@ -231,7 +231,7 @@ func TestVideoOnBrowser(t *testing.T) {
 		Command: "wine notepad",
 	}
 	sstore := gamesession.NewInMemoryStore()
-	mstore := gamemetadata.NewMockMetadataStore()
+	mstore := gamemetadata.NewInMemoryMetadataStore()
 	err := mstore.AddGameMetadata(ctx, gameMetadata.GameID, gameMetadata)
 	assert.NoError(t, err)
 	bc := newInternalBrokerClient(t, sstore, mstore)

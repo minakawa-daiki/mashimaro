@@ -19,7 +19,7 @@ type InMemoryStore struct {
 	mu    sync.RWMutex
 }
 
-func NewMockMetadataStore() *InMemoryStore {
+func NewInMemoryMetadataStore() *InMemoryStore {
 	return &InMemoryStore{
 		metas: make(map[string]*Metadata),
 	}
