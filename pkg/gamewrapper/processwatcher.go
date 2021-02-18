@@ -15,16 +15,27 @@ import (
 	"github.com/castaneai/mashimaro/pkg/x11"
 )
 
+type area struct {
+	startX int
+	startY int
+	endX   int
+	endY   int
+}
+
 type processWatcher struct {
 	cmd    *exec.Cmd
 	pid    int
 	pidMu  sync.Mutex
 	exited *abool.AtomicBool
+
+	area        area
+	areaChanged chan area
 }
 
 func newProcessWatcher() *processWatcher {
 	return &processWatcher{
-		exited: abool.New(),
+		exited:      abool.New(),
+		areaChanged: make(chan area),
 	}
 }
 
@@ -58,6 +69,10 @@ func (w *processWatcher) Start(cmd *exec.Cmd) error {
 	}
 }
 
+func (w *processWatcher) AreaChanged() <-chan area {
+	return w.areaChanged
+}
+
 func (w *processWatcher) checkWindows(xu *xgbutil.XUtil) error {
 	w.pidMu.Lock()
 	pid := w.pid
@@ -74,12 +89,29 @@ func (w *processWatcher) checkWindows(xu *xgbutil.XUtil) error {
 			return errors.Wrap(err, "failed to center window")
 		}
 	}
-	/*
-		mainWindow, err := x11.GetMainWindow(xu, windows)
-		if err != nil {
-			return errors.Wrap(err, "failed to get main window")
-		}
-	*/
+	if len(windows) == 0 {
+		return nil
+	}
+
+	mainWindow, err := x11.GetMainWindow(xu, windows)
+	if err != nil {
+		return errors.Wrap(err, "failed to get main window")
+	}
+	x, y, err := x11.GetWindowPositionOnScreen(xu, xu.Screen(), mainWindow)
+	if err != nil {
+		return errors.Wrap(err, "failed to get window position")
+	}
+	width, height, err := x11.GetWindowSize(xu, mainWindow)
+	if err != nil {
+		return errors.Wrap(err, "failed to get window size")
+	}
+	area := area{
+		startX: x,
+		startY: y,
+		endX:   x + width - 1,
+		endY:   y + height - 1,
+	}
+	w.areaChanged <- area
 	return nil
 }
 

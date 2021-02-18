@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"strings"
 	"sync"
@@ -53,6 +54,7 @@ type Agent struct {
 	gameWrapperClient proto.GameWrapperClient
 	signaler          Signaler
 	streamingConfig   *StreamingConfig
+	captureArea       streamer.CaptureArea
 
 	onExit     func()
 	callbackMu sync.Mutex
@@ -142,7 +144,36 @@ func (a *Agent) Run(ctx context.Context, gsName string) error {
 		return err
 	}
 
-	videoStream, err := streamer.NewX11VideoStream(a.streamingConfig.XDisplay, a.streamingConfig.X264Params)
+	areaCh := make(chan *streamer.CaptureArea)
+	go func() {
+		st, err := a.gameWrapperClient.ListenCaptureArea(ctx, &proto.ListenCaptureAreaRequest{})
+		if err != nil {
+			log.Printf("failed to listen capture area: %+v", err)
+			return
+		}
+		for {
+			resp, err := st.Recv()
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			if err != nil {
+				log.Printf("failed to recv listen capture area: %+v", err)
+			}
+			areaCh <- &streamer.CaptureArea{
+				StartX: int(resp.StartX),
+				StartY: int(resp.StartY),
+				EndX:   int(resp.EndX),
+				EndY:   int(resp.EndY),
+			}
+		}
+	}()
+
+	a.captureArea = *<-areaCh
+	xconf := &streamer.X11CaptureConfig{
+		Display:     a.streamingConfig.XDisplay,
+		CaptureArea: &a.captureArea,
+	}
+	videoStream, err := streamer.NewX11VideoStream(xconf, a.streamingConfig.X264Params)
 	if err != nil {
 		return errors.Wrap(err, "failed to get x11 video stream")
 	}
@@ -234,7 +265,9 @@ func (a *Agent) handleMessage(ctx context.Context, data []byte) error {
 		if err := json.Unmarshal(msg.Body, &body); err != nil {
 			return err
 		}
-		a.xinput.Move(body.X, body.Y)
+		x := a.captureArea.StartX + body.X
+		y := a.captureArea.StartY + body.Y
+		a.xinput.Move(x, y)
 		return nil
 	case messaging.MessageTypeMouseDown:
 		var body messaging.MouseDownMessage

@@ -19,6 +19,8 @@ func TestWatch(t *testing.T) {
 	eg.Go(func() error {
 		return w.Start(cmd)
 	})
+	area := <-w.AreaChanged()
+	t.Logf("area: %v", area)
 	if err := eg.Wait(); err != nil {
 		t.Fatal(err)
 	}

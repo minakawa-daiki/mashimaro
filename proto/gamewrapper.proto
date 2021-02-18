@@ -6,6 +6,7 @@ service GameWrapper {
   rpc StartGame(StartGameRequest) returns (StartGameResponse) {}
   rpc ExitGame(ExitGameRequest) returns (ExitGameResponse) {}
   rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse) {}
+  rpc ListenCaptureArea(ListenCaptureAreaRequest) returns (stream ListenCaptureAreaResponse) {}
 }
 
 message StartGameRequest {
@@ -26,4 +27,14 @@ message HealthCheckRequest {}
 
 message HealthCheckResponse {
   bool healthy = 1;
+}
+
+message ListenCaptureAreaRequest {
+}
+
+message ListenCaptureAreaResponse {
+  uint32 start_x = 1;
+  uint32 start_y = 2;
+  uint32 end_x = 3;
+  uint32 end_y = 4;
 }

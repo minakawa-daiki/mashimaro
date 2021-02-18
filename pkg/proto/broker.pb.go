@@ -19,6 +19,8 @@ It has these top-level messages:
 	ExitGameResponse
 	HealthCheckRequest
 	HealthCheckResponse
+	ListenCaptureAreaRequest
+	ListenCaptureAreaResponse
 */
 package proto
 

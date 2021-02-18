@@ -43,3 +43,21 @@ func (s *gameWrapperServer) ExitGame(ctx context.Context, req *proto.ExitGameReq
 func (s *gameWrapperServer) HealthCheck(ctx context.Context, request *proto.HealthCheckRequest) (*proto.HealthCheckResponse, error) {
 	return &proto.HealthCheckResponse{Healthy: s.processWatcher.IsLiving()}, nil
 }
+
+func (s *gameWrapperServer) ListenCaptureArea(req *proto.ListenCaptureAreaRequest, stream proto.GameWrapper_ListenCaptureAreaServer) error {
+	for {
+		select {
+		case <-stream.Context().Done():
+			return stream.Context().Err()
+		case area := <-s.processWatcher.AreaChanged():
+			if err := stream.Send(&proto.ListenCaptureAreaResponse{
+				StartX: uint32(area.startX),
+				StartY: uint32(area.startY),
+				EndX:   uint32(area.endX),
+				EndY:   uint32(area.endY),
+			}); err != nil {
+				return err
+			}
+		}
+	}
+}
