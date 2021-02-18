@@ -70,7 +70,7 @@ func (w *processWatcher) checkWindows(xu *xgbutil.XUtil) error {
 		return errors.Wrap(err, "failed to enum window")
 	}
 	for _, window := range windows {
-		if err := x11.CenterWindow(xu, xu.Screen(), window); err != nil {
+		if err := x11.CenterWindow(xu, xu.Screen(), window, false); err != nil {
 			return errors.Wrap(err, "failed to center window")
 		}
 	}

@@ -50,7 +50,7 @@ func TestButton(t *testing.T) {
 	assert.NoError(t, err)
 	err = ActivateWindow(i.xu, mainWindow, true)
 	assert.NoError(t, err)
-	screenX, screenY, err := GetWindowPositionOnScreen(i.xu, mainWindow)
+	screenX, screenY, err := GetWindowPositionOnScreen(i.xu, i.xu.Screen(), mainWindow)
 	assert.NoError(t, err)
 	i.Move(screenX+10, screenY+10)
 	time.Sleep(50 * time.Millisecond)

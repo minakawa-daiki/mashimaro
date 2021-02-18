@@ -45,7 +45,7 @@ func TestGetMainWindow(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "Untitled - Notepad", mainWindowTitle)
 
-	x, y, err := GetWindowPositionOnScreen(xu, mainWindow)
+	x, y, err := GetWindowPositionOnScreen(xu, xu.Screen(), mainWindow)
 	assert.NoError(t, err)
 	assert.True(t, x > 0)
 	assert.True(t, y > 0)
@@ -64,7 +64,7 @@ func TestCenterWindow(t *testing.T) {
 	assert.Len(t, windows, 2)
 
 	for _, window := range windows {
-		err := CenterWindow(xu, xu.Screen(), window)
+		err := CenterWindow(xu, xu.Screen(), window, true)
 		assert.NoError(t, err)
 	}
 }

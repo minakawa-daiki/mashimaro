@@ -47,12 +47,11 @@ func IsWindowVisible(xu *xgbutil.XUtil, window xproto.Window) (bool, error) {
 	return reply.MapState == xproto.MapStateViewable, nil
 }
 
-func GetWindowPositionOnScreen(xu *xgbutil.XUtil, window xproto.Window) (x, y int, err error) {
-	reply, err := xproto.GetGeometry(xu.Conn(), xproto.Drawable(window)).Reply()
-	if err != nil {
+func GetWindowPositionOnScreen(xu *xgbutil.XUtil, screen *xproto.ScreenInfo, window xproto.Window) (x, y int, err error) {
+	if _, err := xproto.GetGeometry(xu.Conn(), xproto.Drawable(window)).Reply(); err != nil {
 		return 0, 0, err
 	}
-	offset, err := xproto.TranslateCoordinates(xu.Conn(), window, xu.RootWin(), reply.X, reply.Y).Reply()
+	offset, err := xproto.TranslateCoordinates(xu.Conn(), window, screen.Root, 0, 0).Reply()
 	if err != nil {
 		return 0, 0, err
 	}
@@ -87,14 +86,27 @@ func GetMainWindow(xu *xgbutil.XUtil, windows []xproto.Window) (xproto.Window, e
 	return mainWindow, nil
 }
 
-func CenterWindow(xu *xgbutil.XUtil, screen *xproto.ScreenInfo, window xproto.Window) error {
+func CenterWindow(xu *xgbutil.XUtil, screen *xproto.ScreenInfo, window xproto.Window, sync bool) error {
 	winWidth, winHeight, err := GetWindowSize(xu, window)
 	if err != nil {
 		return err
 	}
 	x := (int(screen.WidthInPixels) - winWidth) / 2
 	y := (int(screen.HeightInPixels) - winHeight) / 2
-	return ewmh.MoveWindow(xu, window, x, y)
+	values := []uint32{uint32(x), uint32(y)}
+	xproto.ConfigureWindow(xu.Conn(), window, xproto.ConfigWindowX|xproto.ConfigWindowY, values)
+	if sync {
+		for {
+			cx, cy, err := GetWindowPositionOnScreen(xu, xu.Screen(), window)
+			if err != nil {
+				return err
+			}
+			if cx == x && cy == y {
+				break
+			}
+		}
+	}
+	return nil
 }
 
 func ActivateWindow(xu *xgbutil.XUtil, window xproto.Window, sync bool) error {
