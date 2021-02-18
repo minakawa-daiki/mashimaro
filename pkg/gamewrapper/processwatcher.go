@@ -111,8 +111,18 @@ func (w *processWatcher) checkWindows(xu *xgbutil.XUtil) error {
 		endX:   x + width - 1,
 		endY:   y + height - 1,
 	}
-	w.areaChanged <- area
+	if areaHasChanged(&area, &w.area) {
+		w.area = area
+		w.areaChanged <- area
+	}
 	return nil
+}
+
+func areaHasChanged(a1, a2 *area) bool {
+	return a1.startX != a2.startX ||
+		a1.startY != a2.startY ||
+		a1.endX != a2.endX ||
+		a1.endY != a2.endY
 }
 
 func (w *processWatcher) KillProcess() error {
