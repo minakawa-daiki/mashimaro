@@ -9,7 +9,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/castaneai/mashimaro/pkg/xorg"
+	"github.com/BurntSushi/xgb/xproto"
+
+	"github.com/BurntSushi/xgbutil"
+	"github.com/castaneai/mashimaro/pkg/x11"
 
 	"github.com/castaneai/mashimaro/pkg/messaging"
 
@@ -53,6 +56,9 @@ type Agent struct {
 
 	onExit     func()
 	callbackMu sync.Mutex
+
+	xutil  *xgbutil.XUtil
+	xinput *x11.Inputter
 }
 
 type StreamingConfig struct {
@@ -94,8 +100,19 @@ func (a *Agent) Run(ctx context.Context, gsName string) error {
 	}
 	log.Printf("[agent] load metadata: %+v", metadata)
 
+	log.Printf("[agent] initialing x11 connection")
+	xu, err := xgbutil.NewConnDisplay(a.streamingConfig.XDisplay)
+	if err != nil {
+		return errors.Wrap(err, "failed to connect to X11")
+	}
+	xi, err := x11.NewInputter(xu)
+	if err != nil {
+		return errors.Wrap(err, "failed to new X11 inputter")
+	}
+	a.xutil = xu
+	a.xinput = xi
+
 	// TODO: provisioning game data and ready to start process
-	xorg.Display(a.streamingConfig.XDisplay)
 	log.Printf("--- (TODO) provisioning game...")
 
 	conn, err := transport.NewWebRTCStreamerConn(defaultWebRTCConfiguration)
@@ -217,35 +234,35 @@ func (a *Agent) handleMessage(ctx context.Context, data []byte) error {
 		if err := json.Unmarshal(msg.Body, &body); err != nil {
 			return err
 		}
-		xorg.Move(body.X, body.Y)
+		a.xinput.Move(body.X, body.Y)
 		return nil
 	case messaging.MessageTypeMouseDown:
 		var body messaging.MouseDownMessage
 		if err := json.Unmarshal(msg.Body, &body); err != nil {
 			return err
 		}
-		xorg.ButtonDown(xorg.XButtonCode(body.Button))
+		a.xinput.SendButton(a.xutil.RootWin(), xproto.Button(body.Button), true)
 		return nil
 	case messaging.MessageTypeMouseUp:
 		var body messaging.MouseUpMessage
 		if err := json.Unmarshal(msg.Body, &body); err != nil {
 			return err
 		}
-		xorg.ButtonUp(xorg.XButtonCode(body.Button))
+		a.xinput.SendButton(a.xutil.RootWin(), xproto.Button(body.Button), false)
 		return nil
 	case messaging.MessageTypeKeyDown:
 		var body messaging.KeyDownMessage
 		if err := json.Unmarshal(msg.Body, &body); err != nil {
 			return err
 		}
-		xorg.KeyDown(uint64(body.Key))
+		a.xinput.SendKey(a.xutil.RootWin(), xproto.Keycode(body.Key), true)
 		return nil
 	case messaging.MessageTypeKeyUp:
 		var body messaging.KeyUpMessage
 		if err := json.Unmarshal(msg.Body, &body); err != nil {
 			return err
 		}
-		xorg.KeyUp(uint64(body.Key))
+		a.xinput.SendKey(a.xutil.RootWin(), xproto.Keycode(body.Key), false)
 		return nil
 	case messaging.MessageTypeExitGame:
 		if _, err := a.gameWrapperClient.ExitGame(ctx, &proto.ExitGameRequest{}); err != nil {

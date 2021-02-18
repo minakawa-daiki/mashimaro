@@ -1,7 +1,7 @@
 FROM golang as builder
 WORKDIR /app
 RUN apt update -y \
-	&& apt install -y libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-base libxrandr-dev libxtst-dev
+	&& apt install -y libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-base
 COPY go.mod .
 COPY go.sum .
 RUN go mod download

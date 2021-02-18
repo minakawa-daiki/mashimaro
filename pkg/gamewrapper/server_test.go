@@ -3,6 +3,7 @@ package gamewrapper
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/castaneai/mashimaro/pkg/proto"
 	"github.com/castaneai/mashimaro/pkg/testutils"
@@ -38,6 +39,7 @@ func TestHealthCheck(t *testing.T) {
 	{
 		_, err := wc.ExitGame(ctx, &proto.ExitGameRequest{})
 		assert.NoError(t, err)
+		time.Sleep(500 * time.Millisecond)
 	}
 
 	{

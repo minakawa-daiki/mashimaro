@@ -1,4 +1,4 @@
-package gameagent_test
+package gameagent
 
 import (
 	"context"
@@ -11,9 +11,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sclevine/agouti"
+	"github.com/BurntSushi/xgb/xproto"
 
-	"github.com/castaneai/mashimaro/pkg/xorg"
+	"github.com/sclevine/agouti"
 
 	"github.com/castaneai/mashimaro/pkg/messaging"
 
@@ -28,7 +28,6 @@ import (
 	"github.com/castaneai/mashimaro/pkg/gamemetadata"
 
 	"github.com/castaneai/mashimaro/pkg/broker"
-	"github.com/castaneai/mashimaro/pkg/gameagent"
 	"github.com/castaneai/mashimaro/pkg/gamesession"
 	"github.com/castaneai/mashimaro/pkg/gamewrapper"
 	"github.com/castaneai/mashimaro/pkg/proto"
@@ -88,7 +87,7 @@ func sendMoveMessage(t *testing.T, conn transport.PlayerConn, msg *messaging.Mov
 	}
 }
 
-func sendMouseMessage(t *testing.T, conn transport.PlayerConn, button xorg.XButtonCode, isDown bool) {
+func sendMouseMessage(t *testing.T, conn transport.PlayerConn, button xproto.Button, isDown bool) {
 	mtype := messaging.MessageTypeMouseDown
 	var msg interface{}
 	if isDown {
@@ -162,10 +161,10 @@ func TestAgent(t *testing.T) {
 	assert.NoError(t, err)
 	bc := newInternalBrokerClient(t, sstore, mstore)
 	gwc := newGameWrapperClient(t)
-	signaler := gameagent.NewAyameSignaler(ayameURL)
+	signaler := NewAyameSignaler(ayameURL)
 
 	display := os.Getenv("DISPLAY")
-	streamingConfig := &gameagent.StreamingConfig{
+	streamingConfig := &StreamingConfig{
 		XDisplay:  display,
 		PulseAddr: "localhost:4713",
 	}
@@ -174,7 +173,7 @@ func TestAgent(t *testing.T) {
 		GameServer: gameServer,
 	})
 	assert.NoError(t, err)
-	agent := gameagent.NewAgent(bc, gwc, signaler, streamingConfig)
+	agent := NewAgent(bc, gwc, signaler, streamingConfig)
 	agentExited := make(chan struct{})
 	agent.OnExit(func() {
 		close(agentExited)
@@ -205,13 +204,8 @@ func TestAgent(t *testing.T) {
 		sendMoveMessage(t, conn, &messaging.MoveMessage{X: i * 10, Y: i * 10})
 		time.Sleep(10 * time.Millisecond)
 	}
-	sendMouseMessage(t, conn, xorg.XButtonCodeLeft, true)
-	sendMouseMessage(t, conn, xorg.XButtonCodeLeft, false)
-	for _, c := range "Hello,World." {
-		sendKeyMessage(t, conn, int(c), true)
-		sendKeyMessage(t, conn, int(c), false)
-		time.Sleep(10 * time.Millisecond)
-	}
+	sendMouseMessage(t, conn, xproto.ButtonIndex3, true)
+	sendMouseMessage(t, conn, xproto.ButtonIndex3, false)
 	time.Sleep(1 * time.Second)
 	sendExitGameMessage(t, conn)
 	<-agentExited
@@ -236,10 +230,10 @@ func TestVideoOnBrowser(t *testing.T) {
 	assert.NoError(t, err)
 	bc := newInternalBrokerClient(t, sstore, mstore)
 	gwc := newGameWrapperClient(t)
-	signaler := gameagent.NewAyameSignaler(ayameURL)
+	signaler := NewAyameSignaler(ayameURL)
 
 	display := os.Getenv("DISPLAY")
-	streamingConfig := &gameagent.StreamingConfig{
+	streamingConfig := &StreamingConfig{
 		XDisplay:     display,
 		X264Params:   fmt.Sprintf(`speed-preset=ultrafast tune=zerolatency byte-stream=true intra-refresh=true`),
 		DisableAudio: true,
@@ -249,7 +243,7 @@ func TestVideoOnBrowser(t *testing.T) {
 		GameServer: gameServer,
 	})
 	assert.NoError(t, err)
-	agent := gameagent.NewAgent(bc, gwc, signaler, streamingConfig)
+	agent := NewAgent(bc, gwc, signaler, streamingConfig)
 	agentExited := make(chan struct{})
 	agent.OnExit(func() {
 		close(agentExited)

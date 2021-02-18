@@ -69,9 +69,6 @@ The following components are required
 - Gstreamer dev headers
   - libgstreamer1.0-dev
   - libgstreamer-plugins-base1.0-dev
-- X11 dev headers
-  - libxrandr-dev
-  - libxtst-dev
 
 ### Testing 
 

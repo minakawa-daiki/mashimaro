@@ -5,6 +5,8 @@ go 1.13
 require (
 	agones.dev/agones v1.11.0
 	cloud.google.com/go/firestore v1.4.0
+	github.com/BurntSushi/xgb v0.0.0-20210121224620-deaf085860bc
+	github.com/BurntSushi/xgbutil v0.0.0-20190907113008-ad855c713046
 	github.com/go-chi/chi v1.5.1
 	github.com/goccy/go-yaml v1.8.5
 	github.com/golang/protobuf v1.4.3
@@ -18,6 +20,7 @@ require (
 	github.com/stretchr/testify v1.6.1
 	github.com/tevino/abool v1.2.0
 	golang.org/x/net v0.0.0-20201224014010-6772e930b67b
+	golang.org/x/sync v0.0.0-20201207232520-09787c993a3a
 	google.golang.org/api v0.36.0
 	google.golang.org/grpc v1.34.0
 )
