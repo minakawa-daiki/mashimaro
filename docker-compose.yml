@@ -51,6 +51,8 @@ services:
       DISPLAY: ":0"
       PORT: 50501
       PULSE_SERVER: gameagent:4713
+    security_opt:
+      - seccomp:unconfined # to avoid clock_getres() failure with EPERM on i386 pulseaudio
     volumes:
       - ./games:/games
       - x11socket:/tmp/.X11-unix/
