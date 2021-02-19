@@ -27,6 +27,7 @@ import (
 const (
 	msgChBufferSize   = 50
 	defaultX264Params = "speed-preset=ultrafast tune=zerolatency byte-stream=true intra-refresh=true"
+	connectTimeout    = 10 * time.Second
 )
 
 var (
@@ -117,9 +118,12 @@ func (a *Agent) Run(ctx context.Context, gsName string, videoConf *streamer.Vide
 		return err
 	}
 
-	// TODO: connection timed out
 	log.Printf("waiting for connection...")
-	<-connected
+	select {
+	case <-connected:
+	case <-time.After(connectTimeout):
+		return fmt.Errorf("connection timed out")
+	}
 	log.Printf("connected!")
 
 	if err := a.startGame(ctx, &metadata); err != nil {
