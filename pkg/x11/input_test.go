@@ -31,7 +31,7 @@ func TestMove(t *testing.T) {
 
 func TestSendKey(t *testing.T) {
 	i := newDefaultInputter(t)
-	StartWineProcess(t, i.xu, "notepad")
+	StartWineProcess(t, "notepad")
 
 	for _, char := range "hello" {
 		for _, keycode := range keybind.StrToKeycodes(i.xu, string(char)) {
@@ -43,7 +43,7 @@ func TestSendKey(t *testing.T) {
 
 func TestButton(t *testing.T) {
 	i := newDefaultInputter(t)
-	cmd := StartWineProcess(t, i.xu, "notepad")
+	cmd := StartWineProcess(t, "notepad")
 	windows, err := EnumWindowsByPid(i.xu, cmd.Process.Pid, i.xu.RootWin(), true)
 	assert.NoError(t, err)
 	mainWindow, err := GetMainWindow(i.xu, windows)

@@ -11,8 +11,7 @@ import (
 func TestWatch(t *testing.T) {
 	t.Skip("Only on manual test")
 
-	xu := x11.NewDefaultXUtil(t)
-	cmd := x11.StartWineProcess(t, xu, "notepad")
+	cmd := x11.StartWineProcess(t, "/home/castaneai/Downloads/rivalgame-1.05-win/rivalgame.exe")
 	w := newProcessWatcher()
 
 	var eg errgroup.Group

@@ -38,7 +38,7 @@ func WaitForAnyWindow(xu *xgbutil.XUtil, pid int, timeout time.Duration) error {
 	}
 }
 
-func StartWineProcess(t *testing.T, xu *xgbutil.XUtil, args ...string) *exec.Cmd {
+func StartWineProcess(t *testing.T, args ...string) *exec.Cmd {
 	cmd := exec.Command("wine", args...)
 	if err := cmd.Start(); err != nil {
 		t.Fatal(err)
@@ -46,8 +46,5 @@ func StartWineProcess(t *testing.T, xu *xgbutil.XUtil, args ...string) *exec.Cmd
 	t.Cleanup(func() {
 		_ = cmd.Process.Kill()
 	})
-	if err := WaitForAnyWindow(xu, cmd.Process.Pid, 5*time.Second); err != nil {
-		t.Fatal(err)
-	}
 	return cmd
 }

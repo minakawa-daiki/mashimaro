@@ -15,7 +15,7 @@ func TestEnumWindows(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cmd := StartWineProcess(t, xu, "notepad", "unknown_file")
+	cmd := StartWineProcess(t, "notepad", "unknown_file")
 	windows, err := EnumWindowsByPid(xu, cmd.Process.Pid, xu.RootWin(), true)
 	if err != nil {
 		t.Fatal(err)
@@ -28,7 +28,7 @@ func TestGetMainWindow(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cmd := StartWineProcess(t, xu, "notepad", "unknown_file")
+	cmd := StartWineProcess(t, "notepad", "unknown_file")
 	windows, err := EnumWindowsByPid(xu, cmd.Process.Pid, xu.RootWin(), true)
 	if err != nil {
 		t.Fatal(err)
@@ -56,7 +56,7 @@ func TestCenterWindow(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cmd := StartWineProcess(t, xu, "notepad", "unknown_file")
+	cmd := StartWineProcess(t, "notepad", "unknown_file")
 	windows, err := EnumWindowsByPid(xu, cmd.Process.Pid, xu.RootWin(), true)
 	if err != nil {
 		t.Fatal(err)

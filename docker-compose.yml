@@ -53,8 +53,10 @@ services:
       PULSE_SERVER: gameagent:4713
     security_opt:
       - seccomp:unconfined # to avoid clock_getres() failure with EPERM on i386 pulseaudio + macOS
+    ports:
+      - 5900:5900
     volumes:
-      - ./games:/games
+      - ./games/microkiri:/games/microkiri
       - x11socket:/tmp/.X11-unix/
     restart: always
   pulseaudio:

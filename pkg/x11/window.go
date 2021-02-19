@@ -8,6 +8,33 @@ import (
 	"github.com/BurntSushi/xgbutil/ewmh"
 )
 
+func EnumWindows(xu *xgbutil.XUtil, root xproto.Window, onlyVisible bool) ([]xproto.Window, error) {
+	var windows []xproto.Window
+	reply, err := xproto.QueryTree(xu.Conn(), root).Reply()
+	var windowErr xproto.WindowError
+	if errors.As(err, &windowErr) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	for _, w := range reply.Children {
+		isVisible, err := IsWindowVisible(xu, w)
+		if err != nil {
+			return nil, err
+		}
+		if !onlyVisible || isVisible {
+			windows = append(windows, w)
+		}
+		children, err := EnumWindows(xu, w, onlyVisible)
+		if err != nil {
+			return nil, err
+		}
+		windows = append(windows, children...)
+	}
+	return windows, nil
+}
+
 func EnumWindowsByPid(xu *xgbutil.XUtil, pid int, root xproto.Window, onlyVisible bool) ([]xproto.Window, error) {
 	var windows []xproto.Window
 	reply, err := xproto.QueryTree(xu.Conn(), root).Reply()

@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/tevino/abool"
+	"github.com/BurntSushi/xgb/xproto"
 
 	"github.com/pkg/errors"
 
@@ -22,11 +22,18 @@ type area struct {
 	endY   int
 }
 
+func (a *area) Width() int {
+	return a.endX - a.startX
+}
+
+func (a *area) Height() int {
+	return a.endY - a.startY
+}
+
 type processWatcher struct {
-	cmd    *exec.Cmd
-	pid    int
-	pidMu  sync.Mutex
-	exited *abool.AtomicBool
+	cmd   *exec.Cmd
+	pid   int
+	pidMu sync.Mutex
 
 	area        area
 	areaChanged chan area
@@ -34,7 +41,6 @@ type processWatcher struct {
 
 func newProcessWatcher() *processWatcher {
 	return &processWatcher{
-		exited:      abool.New(),
 		areaChanged: make(chan area),
 	}
 }
@@ -44,26 +50,14 @@ func (w *processWatcher) Start(cmd *exec.Cmd) error {
 	w.pidMu.Lock()
 	w.pid = cmd.Process.Pid
 	w.pidMu.Unlock()
-	exited := make(chan error)
-	go func() {
-		exited <- w.cmd.Wait()
-	}()
 	xu, err := xgbutil.NewConn()
 	if err != nil {
 		return err
-	}
-	if err := w.checkWindows(xu); err != nil {
-		return errors.Wrap(err, "failed to check windows")
 	}
 	ticker := time.NewTicker(100 * time.Millisecond)
 	log.Printf("start watching process: %+v", w.cmd)
 	for {
 		select {
-		case <-exited:
-			w.exited.Set()
-			code := w.cmd.ProcessState.ExitCode()
-			log.Printf("process exited with code %v", code)
-			return nil
 		case <-ticker.C:
 			if err := w.checkWindows(xu); err != nil {
 				return errors.Wrap(err, "failed to check windows")
@@ -76,16 +70,24 @@ func (w *processWatcher) AreaChanged() <-chan area {
 	return w.areaChanged
 }
 
-func (w *processWatcher) checkWindows(xu *xgbutil.XUtil) error {
+func (w *processWatcher) findWindows(xu *xgbutil.XUtil) ([]xproto.Window, error) {
 	w.pidMu.Lock()
 	pid := w.pid
 	w.pidMu.Unlock()
 	if pid == 0 {
-		return errors.New("pid is not set; start process first")
+		return nil, errors.New("pid is not set; start process first")
 	}
-	windows, err := x11.EnumWindowsByPid(xu, pid, xu.RootWin(), true)
+	windows, err := x11.EnumWindows(xu, xu.RootWin(), true)
 	if err != nil {
-		return errors.Wrap(err, "failed to enum window")
+		return nil, errors.Wrap(err, "failed to enum window")
+	}
+	return windows, nil
+}
+
+func (w *processWatcher) checkWindows(xu *xgbutil.XUtil) error {
+	windows, err := w.findWindows(xu)
+	if err != nil {
+		return err
 	}
 	if len(windows) == 0 {
 		return nil
@@ -102,17 +104,22 @@ func (w *processWatcher) checkWindows(xu *xgbutil.XUtil) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to get window size")
 	}
-	area := area{
+	area := &area{
 		startX: x,
 		startY: y,
 		endX:   x + width - 1,
 		endY:   y + height - 1,
 	}
-	if areaHasChanged(&area, &w.area) {
-		w.area = area
-		w.areaChanged <- area
+	if areaIsValid(area) && areaHasChanged(area, &w.area) {
+		log.Printf("capture area has changed: (%dx%d)", area.Width(), area.Height())
+		w.area = *area
+		w.areaChanged <- *area
 	}
 	return nil
+}
+
+func areaIsValid(a *area) bool {
+	return a.Width() > 0 && a.Height() > 0
 }
 
 func areaHasChanged(a1, a2 *area) bool {
@@ -140,5 +147,6 @@ func (w *processWatcher) KillProcess() error {
 }
 
 func (w *processWatcher) IsLiving() bool {
-	return w.exited.IsNotSet()
+	// TODO:
+	return true
 }
