@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/url"
 	"os"
+	"sync"
 	"testing"
 	"time"
 
@@ -198,8 +199,11 @@ func TestAgent(t *testing.T) {
 		close(connected)
 	})
 	disconnected := make(chan struct{})
+	var dOnce sync.Once
 	conn.OnDisconnect(func() {
-		close(disconnected)
+		dOnce.Do(func() {
+			close(disconnected)
+		})
 	})
 	ayamec := ayame.NewClient(conn.PeerConnection())
 	err = ayamec.Connect(ctx, ayameURL, &ayame.ConnectRequest{

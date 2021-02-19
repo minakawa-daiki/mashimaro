@@ -15,12 +15,12 @@ import (
 )
 
 func (a *Agent) startWatchGame(ctx context.Context, pub *captureAreaPubSub) error {
-	var eg errgroup.Group
+	eg, ctx := errgroup.WithContext(ctx)
 	eg.Go(func() error {
 		return a.startListenCaptureArea(ctx, pub)
 	})
 	eg.Go(func() error {
-		return a.startHealthCheck(ctx, 5*time.Second)
+		return a.startHealthCheck(ctx, 3*time.Second)
 	})
 	return eg.Wait()
 }

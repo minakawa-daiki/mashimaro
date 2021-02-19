@@ -97,10 +97,16 @@ func (a *Agent) Run(ctx context.Context, gsName string, videoConf *streamer.Vide
 	if err != nil {
 		return errors.Wrap(err, "failed to new webrtc streamer conn")
 	}
+	// TODO: reconnect
 	connected := make(chan struct{})
 	conn.OnConnect(func() { close(connected) })
 	disconnected := make(chan struct{})
-	conn.OnDisconnect(func() { close(disconnected) })
+	var dOnce sync.Once
+	conn.OnDisconnect(func() {
+		dOnce.Do(func() {
+			close(disconnected)
+		})
+	})
 	msgCh := make(chan []byte, msgChBufferSize)
 	conn.OnMessage(func(data []byte) {
 		msgCh <- data
@@ -119,7 +125,13 @@ func (a *Agent) Run(ctx context.Context, gsName string, videoConf *streamer.Vide
 	if err := a.startGame(ctx, &metadata); err != nil {
 		return err
 	}
-
+	defer func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if _, err := a.gameWrapperClient.ExitGame(ctx, &proto.ExitGameRequest{}); err != nil {
+			log.Printf("failed to exit game request: %+v", err)
+		}
+	}()
 	errCh := make(chan error)
 	captureAreaChanged := newCaptureAreaPubSub()
 	go func() {

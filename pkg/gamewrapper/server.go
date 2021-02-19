@@ -37,6 +37,7 @@ func (s *gameWrapperServer) StartGame(ctx context.Context, req *proto.StartGameR
 }
 
 func (s *gameWrapperServer) ExitGame(ctx context.Context, req *proto.ExitGameRequest) (*proto.ExitGameResponse, error) {
+	log.Printf("trying to kill game process")
 	if err := s.processWatcher.KillProcess(); err != nil {
 		log.Printf("failed to kill game process: %+v", err)
 	}
@@ -44,7 +45,11 @@ func (s *gameWrapperServer) ExitGame(ctx context.Context, req *proto.ExitGameReq
 }
 
 func (s *gameWrapperServer) HealthCheck(ctx context.Context, request *proto.HealthCheckRequest) (*proto.HealthCheckResponse, error) {
-	return &proto.HealthCheckResponse{Healthy: s.processWatcher.IsLiving()}, nil
+	healthy := s.processWatcher.IsLiving()
+	if !healthy {
+		log.Printf("game process is unhealthy!")
+	}
+	return &proto.HealthCheckResponse{Healthy: healthy}, nil
 }
 
 func (s *gameWrapperServer) ListenCaptureArea(req *proto.ListenCaptureAreaRequest, stream proto.GameWrapper_ListenCaptureAreaServer) error {
