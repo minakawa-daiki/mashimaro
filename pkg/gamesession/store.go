@@ -16,6 +16,7 @@ type Store interface {
 	GetSession(ctx context.Context, sid SessionID) (*Session, error)
 	GetSessionByGameServerName(ctx context.Context, gsName string) (*Session, error)
 	UpdateSessionState(ctx context.Context, sid SessionID, newState State) error
+	DeleteSession(ctx context.Context, sid SessionID) error
 }
 
 type NewSessionRequest struct {
@@ -85,4 +86,11 @@ func (s *InMemoryStore) UpdateSessionState(ctx context.Context, sid SessionID, n
 		}
 	}
 	return ErrSessionNotFound
+}
+
+func (s *InMemoryStore) DeleteSession(ctx context.Context, sid SessionID) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.sessions, sid)
+	return nil
 }

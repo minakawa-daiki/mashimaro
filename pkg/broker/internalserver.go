@@ -3,6 +3,8 @@ package broker
 import (
 	"context"
 
+	"github.com/pkg/errors"
+
 	"google.golang.org/grpc/codes"
 
 	"google.golang.org/grpc/status"
@@ -54,4 +56,22 @@ func (s *internalServer) FindSession(ctx context.Context, req *proto.FindSession
 			GameMetadata: &proto.GameMetadata{Body: string(metadataBody)},
 		},
 	}, nil
+}
+
+func (s *internalServer) DeleteSession(ctx context.Context, req *proto.DeleteSessionRequest) (*proto.DeleteSessionResponse, error) {
+	sid := gamesession.SessionID(req.SessionId)
+	ss, err := s.sessionStore.GetSession(ctx, sid)
+	if errors.Is(err, gamesession.ErrSessionNotFound) {
+		return nil, status.Newf(codes.NotFound, "game session not found").Err()
+	}
+	if ss.GameServerName != req.GameserverName {
+		return nil, status.Newf(codes.FailedPrecondition, "invalid game server name").Err()
+	}
+	if err != nil {
+		return nil, err
+	}
+	if err := s.sessionStore.DeleteSession(ctx, sid); err != nil {
+		return nil, err
+	}
+	return &proto.DeleteSessionResponse{}, nil
 }

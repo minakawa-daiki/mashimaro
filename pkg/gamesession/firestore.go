@@ -97,3 +97,20 @@ func (s *FirestoreStore) UpdateSessionState(ctx context.Context, sid SessionID, 
 	}
 	return nil
 }
+
+func (s *FirestoreStore) DeleteSession(ctx context.Context, sid SessionID) error {
+	ds, err := s.c.Collection(s.collection).Where("sessionId", "==", sid).Documents(ctx).Next()
+	if err == iterator.Done {
+		return ErrSessionNotFound
+	}
+	if err != nil {
+		return err
+	}
+	if !ds.Exists() {
+		return ErrSessionNotFound
+	}
+	if _, err := ds.Ref.Delete(ctx); err != nil {
+		return err
+	}
+	return nil
+}

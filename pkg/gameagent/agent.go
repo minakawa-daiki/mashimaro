@@ -6,6 +6,7 @@ import (
 	"log"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/castaneai/mashimaro/pkg/transport"
 
@@ -72,6 +73,15 @@ func (a *Agent) Run(ctx context.Context, gsName string, videoConf *streamer.Vide
 	if err != nil {
 		return err
 	}
+	defer func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		log.Printf("request delete session")
+		if _, err := a.brokerClient.DeleteSession(ctx, &proto.DeleteSessionRequest{SessionId: ss.SessionId, GameserverName: gsName}); err != nil {
+			log.Printf("failed to delete session: %+v", err)
+		}
+	}()
+
 	sid := gamesession.SessionID(ss.SessionId)
 	var metadata gamemetadata.Metadata
 	if err := yaml.Unmarshal([]byte(ss.GameMetadata.Body), &metadata); err != nil {

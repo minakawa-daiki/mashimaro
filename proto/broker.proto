@@ -4,6 +4,7 @@ option go_package = "proto";
 
 service Broker {
   rpc FindSession(FindSessionRequest) returns (FindSessionResponse) {}
+  rpc DeleteSession(DeleteSessionRequest) returns (DeleteSessionResponse) {}
 }
 
 message FindSessionRequest {
@@ -14,6 +15,13 @@ message FindSessionResponse {
   bool found = 1;
   Session session = 2;
 }
+
+message DeleteSessionRequest {
+  string session_id = 1;
+  string gameserver_name = 2;
+}
+
+message DeleteSessionResponse {}
 
 message Session {
   string session_id = 1;

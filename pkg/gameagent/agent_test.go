@@ -11,6 +11,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/pkg/errors"
+
 	"github.com/castaneai/mashimaro/pkg/streamer"
 
 	"github.com/BurntSushi/xgb/xproto"
@@ -218,6 +220,9 @@ func TestAgent(t *testing.T) {
 	time.Sleep(1 * time.Second)
 	sendExitGameMessage(t, conn)
 	<-agentExited
+	time.Sleep(100 * time.Millisecond)
+	_, err = sstore.GetSession(ctx, ss.SessionID)
+	assert.True(t, errors.Is(err, gamesession.ErrSessionNotFound))
 }
 
 func TestVideoOnBrowser(t *testing.T) {
