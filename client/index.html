@@ -7,7 +7,11 @@
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <title>mashimaro</title>
     <style>
+        body {
+            background: #fafafa;
+        }
         #remote-video {
+            background: #333;
             max-width: 1280px;
             height: auto;
         }
@@ -24,8 +28,12 @@
         <li><label>Game ID: <input id="gameId" type="text" value="microkiri"></label></li>
     </ul>
 </div>
-<button onclick="startConn()">New Game</button>
-<video id="remote-video" autoplay playsinline controls></video>
+<div>
+    <button onclick="startConn()">New Game</button>
+</div>
+<div>
+    <video id="remote-video" autoplay playsinline></video>
+</div>
 
 <script src="https://unpkg.com/@open-ayame/ayame-web-sdk@2020.2.1/dist/ayame.min.js"></script>
 <script>
