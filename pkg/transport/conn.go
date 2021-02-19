@@ -9,6 +9,8 @@ type Conn interface {
 	ConnectionID() string
 	SendMessage(ctx context.Context, data []byte) error
 	OnMessage(f func(data []byte))
+	OnConnect(f func())
+	OnDisconnect(f func())
 }
 
 type StreamerConn interface {

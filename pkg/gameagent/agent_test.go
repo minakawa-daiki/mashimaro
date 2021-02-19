@@ -11,6 +11,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/castaneai/mashimaro/pkg/streamer"
+
 	"github.com/BurntSushi/xgb/xproto"
 
 	"github.com/sclevine/agouti"
@@ -164,22 +166,25 @@ func TestAgent(t *testing.T) {
 	signaler := NewAyameSignaler(ayameURL)
 
 	display := os.Getenv("DISPLAY")
-	streamingConfig := &StreamingConfig{
-		XDisplay:  display,
-		PulseAddr: "localhost:4713",
-	}
 	ss, err := sstore.NewSession(ctx, &gamesession.NewSessionRequest{
 		GameID:     gameMetadata.GameID,
 		GameServer: gameServer,
 	})
 	assert.NoError(t, err)
-	agent := NewAgent(bc, gwc, signaler, streamingConfig)
+	agent := NewAgent(bc, gwc, signaler)
 	agentExited := make(chan struct{})
 	agent.OnExit(func() {
 		close(agentExited)
 	})
+
+	videoConfig := &streamer.VideoConfig{
+		CaptureDisplay: display,
+		CaptureArea:    streamer.CaptureArea{},
+		X264Param:      "",
+	}
+	audioConfig := &streamer.AudioConfig{PulseServer: "localhost:4713"}
 	go func() {
-		if err := agent.Run(ctx, gameServer.Name); err != nil {
+		if err := agent.Run(ctx, gameServer.Name, videoConfig, audioConfig); err != nil {
 			log.Printf("failed to run game agent: %+v", err)
 		}
 	}()
@@ -189,6 +194,10 @@ func TestAgent(t *testing.T) {
 	connected := make(chan struct{})
 	conn.OnConnect(func() {
 		close(connected)
+	})
+	disconnected := make(chan struct{})
+	conn.OnDisconnect(func() {
+		close(disconnected)
 	})
 	ayamec := ayame.NewClient(conn.PeerConnection())
 	err = ayamec.Connect(ctx, ayameURL, &ayame.ConnectRequest{
@@ -233,17 +242,12 @@ func TestVideoOnBrowser(t *testing.T) {
 	signaler := NewAyameSignaler(ayameURL)
 
 	display := os.Getenv("DISPLAY")
-	streamingConfig := &StreamingConfig{
-		XDisplay:     display,
-		X264Params:   fmt.Sprintf(`speed-preset=ultrafast tune=zerolatency byte-stream=true intra-refresh=true`),
-		DisableAudio: true,
-	}
 	ss, err := sstore.NewSession(ctx, &gamesession.NewSessionRequest{
 		GameID:     gameMetadata.GameID,
 		GameServer: gameServer,
 	})
 	assert.NoError(t, err)
-	agent := NewAgent(bc, gwc, signaler, streamingConfig)
+	agent := NewAgent(bc, gwc, signaler)
 	agentExited := make(chan struct{})
 	agent.OnExit(func() {
 		close(agentExited)
@@ -265,8 +269,14 @@ func TestVideoOnBrowser(t *testing.T) {
 	assert.NoError(t, page.RunScript(fmt.Sprintf("startConn('%s')", ss.SessionID), map[string]interface{}{}, &result))
 	assert.NoError(t, page.Click(agouti.SingleClick, agouti.LeftButton)) // to avoid "play() failed because the user didn't interact with the document first"
 
+	videoConfig := &streamer.VideoConfig{
+		CaptureDisplay: display,
+		CaptureArea:    streamer.CaptureArea{},
+		X264Param:      "",
+	}
+	audioConfig := &streamer.AudioConfig{PulseServer: "localhost:4713"}
 	go func() {
-		if err := agent.Run(ctx, gameServer.Name); err != nil {
+		if err := agent.Run(ctx, gameServer.Name, videoConfig, audioConfig); err != nil {
 			log.Printf("failed to run game agent: %+v", err)
 		}
 	}()

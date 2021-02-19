@@ -64,6 +64,7 @@ The following components are required
 - Desktop environment with X11
 - GStreamer
 - PulseAudio
+  - requires `load-module module-native-protocol-tcp`
 - Wine (stable latest)
 - Go 1.15+
 - Gstreamer dev headers

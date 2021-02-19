@@ -6,6 +6,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/castaneai/mashimaro/pkg/streamer"
+
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 
 	"github.com/kelseyhightower/envconfig"
@@ -67,11 +69,7 @@ func main() {
 	gwClient := proto.NewGameWrapperClient(gwCC)
 
 	signaler := gameagent.NewAyameLaboSignaler(conf.AyameLaboURL, conf.AyameLaboSignalingKey, conf.AyameLaboGitHubAccount)
-	streamingConfig := &gameagent.StreamingConfig{
-		XDisplay:  conf.XDisplay,
-		PulseAddr: conf.PulseAddr,
-	}
-	agent := gameagent.NewAgent(brokerClient, gwClient, signaler, streamingConfig)
+	agent := gameagent.NewAgent(brokerClient, gwClient, signaler)
 	if agones != nil {
 		agent.OnExit(func() {
 			if err := agones.Shutdown(); err != nil {
@@ -80,7 +78,12 @@ func main() {
 		})
 	}
 	ctx := context.Background()
-	if err := agent.Run(ctx, gameServerName); err != nil {
+	videoConf := &streamer.VideoConfig{
+		CaptureDisplay: conf.XDisplay,
+		CaptureArea:    streamer.CaptureArea{},
+	}
+	audioConf := &streamer.AudioConfig{PulseServer: conf.PulseAddr}
+	if err := agent.Run(ctx, gameServerName, videoConf, audioConf); err != nil {
 		log.Fatalf("failed to run agent: %+v", err)
 	}
 }

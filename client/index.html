@@ -39,6 +39,11 @@
         const ayameLaboSignalingKey = document.querySelector('#ayameLaboSignalingKey').value
         const ayameLaboAccount = document.querySelector('#ayameLaboAccount').value
         const roomId = `${ayameLaboAccount}@${sid}`
+
+        localStorage.setItem('mashimaro_sessionId', sid)
+        localStorage.setItem('mashimaro_ayameLaboSignalingKey', ayameLaboSignalingKey)
+        localStorage.setItem('mashimaro_ayameLaboAccount', ayameLaboAccount)
+
         const options = Ayame.defaultOptions;
         options.signalingKey = ayameLaboSignalingKey
         const conn = Ayame.connection(ayameLaboUrl, roomId, options, true);
@@ -65,6 +70,10 @@
     };
     const onMessage = (e) => {
         console.log('message received: ', e.data);
+    }
+    window.onload = () => {
+        document.querySelector('#ayameLaboSignalingKey').value = localStorage.getItem('mashimaro_ayameLaboSignalingKey')
+        document.querySelector('#ayameLaboAccount').value = localStorage.getItem('mashimaro_ayameLaboAccount')
     }
     document.querySelector('#remote-video').addEventListener('click', e => {
         e.preventDefault();

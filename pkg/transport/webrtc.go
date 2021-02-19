@@ -14,14 +14,15 @@ import (
 )
 
 type WebRTCConn struct {
-	cid        string
-	pc         *webrtc.PeerConnection
-	dc         *webrtc.DataChannel
-	dcMu       sync.Mutex
-	onMessage  func([]byte)
-	onConnect  func()
-	connected  *abool.AtomicBool
-	callbackMu sync.Mutex
+	cid          string
+	pc           *webrtc.PeerConnection
+	dc           *webrtc.DataChannel
+	dcMu         sync.Mutex
+	onMessage    func([]byte)
+	onConnect    func()
+	onDisconnect func()
+	connected    *abool.AtomicBool
+	callbackMu   sync.Mutex
 }
 
 type dataChannelFactory struct {
@@ -97,6 +98,13 @@ func NewWebRTCConn(cid string, pc *webrtc.PeerConnection) (*WebRTCConn, error) {
 			}
 		case webrtc.ICEConnectionStateConnected:
 			wg.Done()
+		case webrtc.ICEConnectionStateDisconnected, webrtc.ICEConnectionStateFailed, webrtc.ICEConnectionStateClosed:
+			conn.callbackMu.Lock()
+			f := conn.onDisconnect
+			conn.callbackMu.Unlock()
+			if f != nil {
+				f()
+			}
 		}
 	})
 	return conn, nil
@@ -114,6 +122,12 @@ func (c *WebRTCConn) OnConnect(f func()) {
 	c.callbackMu.Lock()
 	defer c.callbackMu.Unlock()
 	c.onConnect = f
+}
+
+func (c *WebRTCConn) OnDisconnect(f func()) {
+	c.callbackMu.Lock()
+	defer c.callbackMu.Unlock()
+	c.onDisconnect = f
 }
 
 func (c *WebRTCConn) SendMessage(ctx context.Context, data []byte) error {
