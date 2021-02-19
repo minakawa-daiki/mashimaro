@@ -3,6 +3,7 @@ package gamewrapper
 import (
 	"context"
 	"log"
+	"os"
 	"os/exec"
 
 	"github.com/pkg/errors"
@@ -22,6 +23,8 @@ func (s *gameWrapperServer) StartGame(ctx context.Context, req *proto.StartGameR
 	log.Printf("starting game: %+v", req)
 	s.processWatcher = newProcessWatcher()
 	cmd := exec.Command(req.Command, req.Args...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 	if err := cmd.Start(); err != nil {
 		return nil, errors.Wrap(err, "failed to start process")
 	}

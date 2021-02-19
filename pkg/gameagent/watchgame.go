@@ -3,6 +3,7 @@ package gameagent
 import (
 	"context"
 	"fmt"
+	"log"
 	"time"
 
 	"golang.org/x/sync/errgroup"
@@ -44,7 +45,9 @@ func (a *Agent) startListenCaptureArea(ctx context.Context, pub *captureAreaPubS
 }
 
 func (a *Agent) startHealthCheck(ctx context.Context, interval time.Duration) error {
+	log.Printf("start healthcheck...")
 	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
 	for {
 		select {
 		case <-ctx.Done():
