@@ -9,13 +9,20 @@ import (
 )
 
 func (a *Agent) startStreaming(ctx context.Context, conn transport.StreamerConn, videoConf *streamer.VideoConfig, audioConf *streamer.AudioConfig, captureAreaChanged <-chan *streamer.CaptureArea) error {
+	log.Printf("waiting for capture area has changed")
+	area := <-captureAreaChanged
+	videoConf = &streamer.VideoConfig{
+		CaptureDisplay: videoConf.CaptureDisplay,
+		CaptureArea:    *area,
+		X264Param:      videoConf.X264Param,
+	}
+	log.Printf("start streaming")
 	s := streamer.NewStreamer(conn)
 
 	streamErrCh := make(chan error)
 	go func() {
 		streamErrCh <- s.Start(ctx, videoConf, audioConf)
 	}()
-	log.Printf("start streaming...")
 	for {
 		select {
 		case <-ctx.Done():
