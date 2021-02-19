@@ -52,6 +52,9 @@ func (w *processWatcher) Start(cmd *exec.Cmd) error {
 	if err != nil {
 		return err
 	}
+	if err := w.checkWindows(xu); err != nil {
+		return errors.Wrap(err, "failed to check windows")
+	}
 	ticker := time.NewTicker(100 * time.Millisecond)
 	log.Printf("start watching process: %+v", w.cmd)
 	for {
@@ -84,15 +87,9 @@ func (w *processWatcher) checkWindows(xu *xgbutil.XUtil) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to enum window")
 	}
-	for _, window := range windows {
-		if err := x11.CenterWindow(xu, xu.Screen(), window, false); err != nil {
-			return errors.Wrap(err, "failed to center window")
-		}
-	}
 	if len(windows) == 0 {
 		return nil
 	}
-
 	mainWindow, err := x11.GetMainWindow(xu, windows)
 	if err != nil {
 		return errors.Wrap(err, "failed to get main window")

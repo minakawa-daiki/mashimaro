@@ -7,32 +7,48 @@
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <title>mashimaro</title>
     <style>
+        #container {
+            max-width: 960px;
+            margin: 0 auto;
+        }
         body {
+            font-family: "Helvetica Neue",Arial,"Hiragino Kaku Gothic ProN","Hiragino Sans",Meiryo,sans-serif;
             background: #fafafa;
         }
         #remote-video {
             background: #333;
-            max-width: 1280px;
+            width: 960px;
             height: auto;
         }
     </style>
 </head>
 <body>
 
-<div>
-    <ul>
-        <li><label>Ayame Labo URL: <input id="ayameLaboUrl" type="text" value="wss://ayame-labo.shiguredo.jp/signaling"></label></li>
-        <li><label>Ayame Labo Key: <input id="ayameLaboSignalingKey" type="text" value=""></label></li>
-        <li><label>Ayame Labo Account: <input id="ayameLaboAccount" type="text" value=""></label></li>
-        <li><label>External Broker Server: <input id="externalBrokerServer" type="text" value="http://localhost:8081"></label></li>
-        <li><label>Game ID: <input id="gameId" type="text" value="microkiri"></label></li>
-    </ul>
-</div>
-<div>
-    <button onclick="startConn()">New Game</button>
-</div>
-<div>
-    <video id="remote-video" autoplay playsinline></video>
+<div id="container">
+    <h1>mashimaro</h1>
+
+    <div>
+        <video id="remote-video" autoplay playsinline></video>
+    </div>
+    <div>
+        <h3>Sessions</h3>
+        <span>
+            <label>Game ID: <input id="gameId" type="text" value="microkiri"></label>
+        </span>
+        <span>
+            <button onclick="startConn()">New Game</button>
+        </span>
+    </div>
+    <div>
+        <h3>Settings</h3>
+        <ul>
+            <li><label>Ayame Labo URL: <input id="ayameLaboUrl" type="text" value="wss://ayame-labo.shiguredo.jp/signaling"></label></li>
+            <li><label>Ayame Labo Key: <input id="ayameLaboSignalingKey" type="password"></label></li>
+            <li><label>Ayame Labo Account: <input id="ayameLaboAccount" type="text"></label></li>
+            <li><label>External Broker Server: <input id="externalBrokerServer" type="text" value="http://localhost:8081"></label></li>
+        </ul>
+    </div>
+
 </div>
 
 <script src="https://unpkg.com/@open-ayame/ayame-web-sdk@2020.2.1/dist/ayame.min.js"></script>
