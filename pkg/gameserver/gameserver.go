@@ -64,6 +64,8 @@ func (s *GameServer) OnShutdown(f func()) {
 }
 
 func (s *GameServer) Serve(ctx context.Context) error {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 	defer s.shutdown()
 
 	errCh := make(chan error)
@@ -128,6 +130,7 @@ func (s *GameServer) Serve(ctx context.Context) error {
 		return err
 	}
 	defer func() {
+		log.Printf("clean-up game process")
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second) // TODO: from config
 		defer cancel()
 		if _, err := s.gameProcess.ExitGame(ctx, &proto.ExitGameRequest{}); err != nil {

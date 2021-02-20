@@ -1,4 +1,7 @@
 #!/bin/bash
-Xvfb "${DISPLAY}" -screen 0 1920x1080x24 &
-x11vnc -display WAIT"${DISPLAY}" -shared -forever -passwd 1234 -q &
+set +x
+echo "Waiting for X server"
+until [[ -e /var/run/appconfig/xserver_ready ]]; do sleep 1; done
+echo "X server is ready"
+set -x
 "$@"

@@ -43,6 +43,7 @@ services:
     volumes:
       - x11socket:/tmp/.X11-unix/
       - appconfig:/var/run/appconfig
+    ipc: host
     restart: always
   gameprocess:
     build:
@@ -58,11 +59,22 @@ services:
       - ./games/microkiri:/games/microkiri
       - x11socket:/tmp/.X11-unix/
       - appconfig:/var/run/appconfig
+    ipc: host
     restart: always
   pulseaudio:
     build: services/gameserver/pulseaudio
     network_mode: service:gameserver
     restart: always
+  xserver:
+    build: services/gameserver/xserver
+    ports:
+      - 5900:5900
+    environment:
+      DISPLAY: ":0"
+    volumes:
+      - x11socket:/tmp/.X11-unix/
+      - appconfig:/var/run/appconfig
+    ipc: host
 
 volumes:
   x11socket:

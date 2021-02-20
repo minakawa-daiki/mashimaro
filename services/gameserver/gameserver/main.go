@@ -78,7 +78,7 @@ func main() {
 	}
 	ctx := context.Background()
 	if err := gameServer.Serve(ctx); err != nil {
-		log.Fatalf("failed to run gameServer: %+v", err)
+		log.Fatalf("failed to serve game server: %+v", err)
 	}
 }
 
