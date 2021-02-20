@@ -24,15 +24,15 @@ func NewStreamer(conn transport.StreamerConn, videoCapturer, audioCapturer Captu
 
 func (s *Streamer) Start(ctx context.Context) error {
 	eg, ctx := errgroup.WithContext(ctx)
-	eg.Go(func() error {
-		return s.startVideoStreaming(ctx)
-	})
-	// TODO: audio
+	eg.Go(func() error { return s.startVideoStreaming(ctx) })
+	eg.Go(func() error { return s.startAudioStreaming(ctx) })
 	return eg.Wait()
 }
 
 func (s *Streamer) startVideoStreaming(ctx context.Context) error {
-	s.videoCapturer.Start()
+	if err := s.videoCapturer.Start(); err != nil {
+		return err
+	}
 	defer func() { _ = s.videoCapturer.Close() }()
 	for {
 		select {
@@ -54,5 +54,25 @@ func (s *Streamer) startVideoStreaming(ctx context.Context) error {
 }
 
 func (s *Streamer) startAudioStreaming(ctx context.Context) error {
-	panic("not implemented")
+	if err := s.audioCapturer.Start(); err != nil {
+		return err
+	}
+	defer func() { _ = s.audioCapturer.Close() }()
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+			chunk, err := s.audioCapturer.ReadChunk(ctx)
+			if err != nil {
+				return err
+			}
+			if err := s.conn.SendAudioSample(ctx, transport.MediaSample{
+				Data:     chunk.Data,
+				Duration: chunk.Duration,
+			}); err != nil {
+				return err
+			}
+		}
+	}
 }

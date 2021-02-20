@@ -25,18 +25,20 @@ type Capturer interface {
 }
 
 type GstCapturer struct {
+	name        string
 	pipelineStr string
 	gstPipeline *gst.Pipeline
 	sinkElement *gst.Element
 }
 
-func NewGstCapturer(pipelineStr, sinkName string) (*GstCapturer, error) {
+func NewGstCapturer(name, pipelineStr, sinkName string) (*GstCapturer, error) {
 	pipeline, err := gst.ParseLaunch(pipelineStr)
 	if err != nil {
 		return nil, err
 	}
 	element := pipeline.GetByName(sinkName)
 	return &GstCapturer{
+		name:        name,
 		pipelineStr: pipelineStr,
 		gstPipeline: pipeline,
 		sinkElement: element,
@@ -44,16 +46,16 @@ func NewGstCapturer(pipelineStr, sinkName string) (*GstCapturer, error) {
 }
 
 func (c *GstCapturer) Start() error {
-	log.Printf("Starting GStreamer pipeline: %s", c.pipelineStr)
+	log.Printf("Starting GStreamer pipeline %s: %s", c.name, c.pipelineStr)
 	go func() {
 		bus := c.gstPipeline.GetBus()
 		for {
 			msg := bus.Pull(gst.MessageAny)
 			st := msg.GetStructure()
 			if st.C != nil {
-				log.Printf("[gst] %s", st.ToString())
+				log.Printf("[gst %s] %s", c.name, st.ToString())
 			} else {
-				log.Printf("[gst] %s", msg.GetName())
+				log.Printf("[gst %s] %s", c.name, msg.GetName())
 			}
 		}
 	}()
@@ -62,7 +64,7 @@ func (c *GstCapturer) Start() error {
 }
 
 func (c *GstCapturer) Close() error {
-	log.Printf("Stopping GStreamer pipeline: %s", c.pipelineStr)
+	log.Printf("Stopping GStreamer pipeline: %s", c.name)
 	c.gstPipeline.SetState(gst.StateNull)
 	return nil
 }
@@ -149,7 +151,7 @@ func NewX11Capturer(x11conf *X11CaptureConfig, x264conf *X264EncodeConfig) (Capt
 		endY = 0
 	}
 	// why use-damage=0?: https://github.com/GoogleCloudPlatform/selkies-vdi/blob/0da21b7c9432bd5c99f1f9f7c541ac9c583f9ef4/images/gst-webrtc-app/gstwebrtc_app.py#L148
-	src := fmt.Sprintf("ximagesrc display-name=%s remote=1 use-damage=0 startx=%d starty=%d endx=%d endy=%d",
+	src := fmt.Sprintf("ximagesrc display-name=%s remote=1 use-damage=0 startx=%d starty=%d endx=%d endy=%d ! queue ",
 		x11conf.Display, startX, startY, endX, endY)
 	return newX264EncodeCapturer(src, x264conf)
 }
@@ -167,7 +169,7 @@ func newX264EncodeCapturer(gstSrcPipelineStr string, conf *X264EncodeConfig) (Ca
 		return nil, err
 	}
 	pipelineStr := fmt.Sprintf("%s ! videoconvert ! video/x-raw,format=I420 ! x264enc %s ! appsink name=video", gstSrcPipelineStr, conf.X264Params)
-	return NewGstCapturer(pipelineStr, "video")
+	return NewGstCapturer("video", pipelineStr, "video")
 }
 
 type PulseAudioCaptureConfig struct {
@@ -182,7 +184,7 @@ func NewPulseAudioCapturer(pulseConf *PulseAudioCaptureConfig, opusConf *OpusEnc
 	if err := gst.CheckPlugins([]string{"pulseaudio"}); err != nil {
 		return nil, err
 	}
-	return newOpusEncodeCapturer(fmt.Sprintf("pulsesrc server=%s", pulseConf.PulseServer), opusConf)
+	return newOpusEncodeCapturer(fmt.Sprintf("pulsesrc server=%s ! queue ", pulseConf.PulseServer), opusConf)
 }
 
 func newOpusEncodeCapturer(gstSrcPipelineStr string, conf *OpusEncodeConfig) (Capturer, error) {
@@ -190,5 +192,5 @@ func newOpusEncodeCapturer(gstSrcPipelineStr string, conf *OpusEncodeConfig) (Ca
 		return nil, err
 	}
 	pipelineStr := fmt.Sprintf("%s ! opusenc ! appsink name=audio", gstSrcPipelineStr)
-	return NewGstCapturer(pipelineStr, "audio")
+	return NewGstCapturer("audio", pipelineStr, "audio")
 }

@@ -5,8 +5,6 @@ import (
 	"log"
 	"time"
 
-	"github.com/BurntSushi/xgb/xproto"
-
 	"github.com/pkg/errors"
 
 	"github.com/BurntSushi/xgbutil"
@@ -37,10 +35,6 @@ func (s *GameServer) startListenCaptureArea(ctx context.Context, pub *captureAre
 		case <-ticker.C:
 			area, err := getMainWindowArea(xu)
 			if err == errNoWindows {
-				continue
-			}
-			// BadWindow
-			if errors.Is(err, xproto.WindowError{}) {
 				continue
 			}
 			if err != nil {

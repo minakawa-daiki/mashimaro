@@ -23,7 +23,6 @@ func (s *GameServer) startStreaming(ctx context.Context, conn transport.Streamer
 	if err != nil {
 		return err
 	}
-	// TODO: start audio capture
 	audioCapturer, err := streamer.NewPulseAudioCapturer(&streamer.PulseAudioCaptureConfig{PulseServer: "localhost:4713"}, &streamer.OpusEncodeConfig{})
 	if err != nil {
 		return err
