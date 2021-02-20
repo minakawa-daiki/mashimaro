@@ -27,14 +27,14 @@ services:
     build: ./services/ayame
     ports:
     - 3000:3000
-  gameagent:
+  gameserver:
     build:
       context: .
-      dockerfile: services/gaming/gameagent/Dockerfile
+      dockerfile: services/gameserver/gameserver/Dockerfile
     environment:
       AYAME_LABO_URL: wss://ayame-labo.shiguredo.jp/signaling
       INTERNAL_BROKER_ADDR: internalbroker:50501
-      GAME_WRAPPER_ADDR: game:50501
+      GAME_PROCESS_ADDR: gameprocess:50501
       PULSE_ADDR: localhost:4713
       USE_MOCK_ALLOCATOR: 1
       DISPLAY: ":0"
@@ -42,29 +42,28 @@ services:
       - .env
     volumes:
       - x11socket:/tmp/.X11-unix/
+      - appconfig:/var/run/appconfig
     restart: always
-  game:
+  gameprocess:
     build:
       context: .
-      dockerfile: services/gaming/game/Dockerfile
+      dockerfile: services/gameserver/gameprocess/Dockerfile
     environment:
       DISPLAY: ":0"
       PORT: 50501
-      PULSE_SERVER: gameagent:4713
+      PULSE_SERVER: gameserver:4713
     security_opt:
       - seccomp:unconfined # to avoid clock_getres() failure with EPERM on i386 pulseaudio + macOS
-    ports:
-      - 5900:5900
     volumes:
       - ./games/microkiri:/games/microkiri
       - x11socket:/tmp/.X11-unix/
+      - appconfig:/var/run/appconfig
     restart: always
   pulseaudio:
-    depends_on:
-      - gameagent
-    build: ./services/gaming/pulseaudio
-    network_mode: service:gameagent
+    build: services/gameserver/pulseaudio
+    network_mode: service:gameserver
     restart: always
 
 volumes:
   x11socket:
+  appconfig:

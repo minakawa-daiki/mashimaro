@@ -8,13 +8,13 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/castaneai/mashimaro/pkg/allocator"
+
 	"github.com/castaneai/mashimaro/pkg/gamemetadata"
 
 	"github.com/castaneai/mashimaro/pkg/testutils"
 
 	"github.com/stretchr/testify/assert"
-
-	"github.com/castaneai/mashimaro/pkg/gameserver"
 
 	"github.com/castaneai/mashimaro/pkg/gamesession"
 
@@ -26,7 +26,7 @@ type externalBrokerClient struct {
 	hs *httptest.Server
 }
 
-func newExternalBrokerClient(sstore gamesession.Store, mstore gamemetadata.Store, allocator gameserver.Allocator) *externalBrokerClient {
+func newExternalBrokerClient(sstore gamesession.Store, mstore gamemetadata.Store, allocator allocator.Allocator) *externalBrokerClient {
 	s := NewExternalServer(sstore, mstore, allocator)
 	return &externalBrokerClient{
 		httptest.NewServer(s.Handler()),
@@ -72,15 +72,12 @@ func TestBroker(t *testing.T) {
 	if err := mstore.AddGameMetadata(ctx, metadata.GameID, metadata); err != nil {
 		t.Fatal(err)
 	}
-	gs := &gameserver.GameServer{Name: "dummy", Addr: "dummy-addr"}
-	allocator := gameserver.NewMockAllocator(gs)
+	gs := &allocator.AllocatedServer{ID: "dummy"}
+	allocator := allocator.NewMockAllocator(gs)
 
 	ic := newInternalBrokerClient(t, sstore, mstore)
-	{
-		resp, err := ic.FindSession(ctx, &proto.FindSessionRequest{GameserverName: gs.Name})
-		assert.NoError(t, err)
-		assert.False(t, resp.Found)
-	}
+	watchStream, err := ic.WatchSession(ctx, &proto.WatchSessionRequest{AllocatedServerId: gs.ID})
+	assert.NoError(t, err)
 
 	// create game session
 	ec := newExternalBrokerClient(sstore, mstore, allocator)
@@ -88,10 +85,16 @@ func TestBroker(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotEmpty(t, sid)
 
-	{
-		resp, err := ic.FindSession(ctx, &proto.FindSessionRequest{GameserverName: gs.Name})
-		assert.NoError(t, err)
-		assert.True(t, resp.Found)
-		assert.Equal(t, sid, gamesession.SessionID(resp.Session.SessionId))
-	}
+	watchResp, err := watchStream.Recv()
+	assert.NoError(t, err)
+	assert.True(t, watchResp.Found)
+	assert.Equal(t, sid, gamesession.SessionID(watchResp.Session.SessionId))
+	assert.Equal(t, gs.ID, watchResp.Session.AllocatedServerId)
+
+	assert.NoError(t, sstore.DeleteSession(ctx, sid))
+
+	watchResp, err = watchStream.Recv()
+	assert.NoError(t, err)
+	assert.False(t, watchResp.Found)
+	assert.Nil(t, watchResp.Session)
 }

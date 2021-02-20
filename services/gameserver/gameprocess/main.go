@@ -8,12 +8,12 @@ import (
 	"github.com/castaneai/mashimaro/pkg/proto"
 	"google.golang.org/grpc"
 
-	"github.com/castaneai/mashimaro/pkg/gamewrapper"
+	"github.com/castaneai/mashimaro/pkg/gameprocess"
 	"github.com/kelseyhightower/envconfig"
 )
 
 type config struct {
-	Port string `envconfig:"PORT" default:"50501"`
+	Port string `envconfig:"PORT" required:"true"`
 }
 
 func main() {
@@ -29,6 +29,6 @@ func main() {
 		log.Fatal(err)
 	}
 	s := grpc.NewServer()
-	proto.RegisterGameWrapperServer(s, gamewrapper.NewGameWrapperServer())
+	proto.RegisterGameProcessServer(s, gameprocess.NewGameProcessServer())
 	log.Fatal(s.Serve(lis))
 }

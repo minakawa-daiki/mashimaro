@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+option go_package = "proto";
+
+service GameProcess {
+  rpc StartGame(StartGameRequest) returns (StartGameResponse) {}
+  rpc ExitGame(ExitGameRequest) returns (ExitGameResponse) {}
+}
+
+message StartGameRequest {
+  string command = 1;
+  repeated string args = 2;
+  string working_directory = 3;
+}
+
+message StartGameResponse {
+
+}
+
+message ExitGameRequest {}
+
+message ExitGameResponse {}

@@ -2,12 +2,6 @@ package streamer
 
 import (
 	"context"
-	"log"
-	"os"
-	"testing"
-	"time"
-
-	"github.com/stretchr/testify/assert"
 
 	"github.com/castaneai/mashimaro/pkg/transport"
 )
@@ -60,31 +54,4 @@ func (c *mockConn) OnConnect(f func()) {
 
 func (c *mockConn) OnDisconnect(f func()) {
 	panic("implement me")
-}
-
-func TestStreamer(t *testing.T) {
-	conn := newMockConn()
-	s := NewStreamer(conn)
-	ctx := context.Background()
-	vc := &VideoConfig{
-		CaptureDisplay: os.Getenv("DISPLAY"),
-		CaptureArea:    CaptureArea{StartX: 0, StartY: 0, EndX: 100, EndY: 100},
-		X264Param:      defaultX264Params,
-	}
-	ac := &AudioConfig{PulseServer: "localhost:4713"}
-	go func() {
-		if err := s.Start(ctx, vc, ac); err != nil {
-			log.Printf("failed to start: %+v", err)
-		}
-	}()
-	assert.True(t, len(<-conn.videoSampleCh) > 0)
-	assert.True(t, len(<-conn.audioSampleCh) > 0)
-
-	vc2 := &VideoConfig{
-		CaptureDisplay: vc.CaptureDisplay,
-		CaptureArea:    CaptureArea{StartX: 0, StartY: 0, EndX: 200, EndY: 200},
-		X264Param:      defaultX264Params,
-	}
-	s.RestartVideo(vc2)
-	time.Sleep(500 * time.Millisecond)
 }

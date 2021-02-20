@@ -1,4 +1,4 @@
-package gameserver
+package allocator
 
 import (
 	"bytes"
@@ -7,27 +7,6 @@ import (
 	"fmt"
 	"net/http"
 )
-
-type Allocator interface {
-	Allocate(ctx context.Context) (*GameServer, error)
-}
-
-type MockAllocator struct {
-	MockedGS *GameServer
-}
-
-func NewMockAllocator(mockedGS *GameServer) *MockAllocator {
-	return &MockAllocator{MockedGS: mockedGS}
-}
-
-func (a *MockAllocator) Allocate(ctx context.Context) (*GameServer, error) {
-	return a.MockedGS, nil
-}
-
-type GameServer struct {
-	Name string
-	Addr string
-}
 
 type AgonesAllocator struct {
 	addr      string
@@ -39,7 +18,7 @@ type allocationRequest struct {
 }
 
 type allocationPort struct {
-	Name string `json:"gameagent"`
+	Name string `json:"name"`
 	Port int    `json:"port"`
 }
 
@@ -56,12 +35,13 @@ func (r *allocationResponse) Addr() string {
 	return fmt.Sprintf("%s:%d", r.Address, r.Ports[0].Port)
 }
 
-func (a *AgonesAllocator) Allocate(ctx context.Context) (*GameServer, error) {
+func (a *AgonesAllocator) Allocate(ctx context.Context) (*AllocatedServer, error) {
 	var body bytes.Buffer
 	enc := json.NewEncoder(&body)
 	if err := enc.Encode(&allocationRequest{Namespace: a.namespace}); err != nil {
 		return nil, err
 	}
+	// TODO: mTLS + gRPC
 	req, err := http.NewRequest("POST", "http://"+a.addr+"/gameserverallocation", bytes.NewReader(body.Bytes()))
 	if err != nil {
 		return nil, err
@@ -78,9 +58,8 @@ func (a *AgonesAllocator) Allocate(ctx context.Context) (*GameServer, error) {
 	if err := dec.Decode(&resp); err != nil {
 		return nil, err
 	}
-	return &GameServer{
-		Name: resp.GameServerName,
-		Addr: resp.Addr(),
+	return &AllocatedServer{
+		ID: resp.GameServerName,
 	}, nil
 }
 

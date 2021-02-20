@@ -6,9 +6,9 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/castaneai/mashimaro/pkg/gamemetadata"
-	"github.com/castaneai/mashimaro/pkg/gameserver"
+	"github.com/castaneai/mashimaro/pkg/allocator"
 
+	"github.com/castaneai/mashimaro/pkg/gamemetadata"
 	"github.com/castaneai/mashimaro/pkg/gamesession"
 
 	"github.com/go-chi/chi"
@@ -17,11 +17,11 @@ import (
 type ExternalServer struct {
 	sessionStore  gamesession.Store
 	metadataStore gamemetadata.Store
-	allocator     gameserver.Allocator
+	allocator     allocator.Allocator
 }
 
-func NewExternalServer(sessionStore gamesession.Store, metadataStore gamemetadata.Store, allocator gameserver.Allocator) *ExternalServer {
-	return &ExternalServer{sessionStore: sessionStore, metadataStore: metadataStore, allocator: allocator}
+func NewExternalServer(sessionStore gamesession.Store, metadataStore gamemetadata.Store, alloc allocator.Allocator) *ExternalServer {
+	return &ExternalServer{sessionStore: sessionStore, metadataStore: metadataStore, allocator: alloc}
 }
 
 type newGameResponse struct {
@@ -33,18 +33,18 @@ func (s *ExternalServer) newGame(ctx context.Context, gameID string) (*gamesessi
 	if err != nil {
 		return nil, err
 	}
-	gameServer, err := s.allocator.Allocate(ctx)
+	allocatedServer, err := s.allocator.Allocate(ctx)
 	if err != nil {
 		return nil, err
 	}
 	ss, err := s.sessionStore.NewSession(ctx, &gamesession.NewSessionRequest{
-		GameID:     gameID,
-		GameServer: gameServer,
+		GameID:            gameID,
+		AllocatedServerID: allocatedServer.ID,
 	})
 	if err != nil {
 		return nil, err
 	}
-	log.Printf("created game session: %s (gs: %+v, metadata: %+v)", ss.SessionID, gameServer, metadata)
+	log.Printf("created game session: %s (gs: %+v, metadata: %+v)", ss.SessionID, allocatedServer, metadata)
 	return ss, nil
 }
 

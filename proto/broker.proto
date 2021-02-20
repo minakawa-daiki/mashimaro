@@ -3,29 +3,39 @@ syntax = "proto3";
 option go_package = "proto";
 
 service Broker {
-  rpc FindSession(FindSessionRequest) returns (FindSessionResponse) {}
+  rpc WatchSession(WatchSessionRequest) returns (stream WatchSessionResponse) {}
   rpc DeleteSession(DeleteSessionRequest) returns (DeleteSessionResponse) {}
+  rpc GetGameMetadata(GetGameMetadataRequest) returns (GetGameMetadataResponse) {}
 }
 
-message FindSessionRequest {
-  string gameserver_name = 1;
+message WatchSessionRequest {
+  string allocated_server_id = 1;
 }
 
-message FindSessionResponse {
+message WatchSessionResponse {
   bool found = 1;
   Session session = 2;
 }
 
 message DeleteSessionRequest {
   string session_id = 1;
-  string gameserver_name = 2;
+  string allocated_server_id = 2;
 }
 
 message DeleteSessionResponse {}
 
 message Session {
   string session_id = 1;
-  GameMetadata game_metadata = 2;
+  string allocated_server_id = 2;
+  string game_id = 3;
+}
+
+message GetGameMetadataRequest {
+  string game_id = 1;
+}
+
+message GetGameMetadataResponse {
+  GameMetadata game_metadata = 1;
 }
 
 message GameMetadata {

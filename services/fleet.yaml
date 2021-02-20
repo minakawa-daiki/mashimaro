@@ -8,7 +8,7 @@ spec:
     type: Recreate
   template:
     spec:
-      container: gameagent
+      container: gameserver
       ports:
         - name: dummy
           containerPort: 12345
@@ -24,8 +24,8 @@ spec:
                 medium: Memory
                 sizeLimit: 10Mi
           containers:
-            - name: gameagent
-              image: mashimaro/gameagent
+            - name: gameserver
+              image: mashimaro/gameserver
               env:
                 - name: AYAME_LABO_URL
                   value: wss://ayame-labo.shiguredo.jp/signaling
@@ -41,7 +41,7 @@ spec:
                       key: AYAME_LABO_GITHUB_ACCOUNT
                 - name: INTERNAL_BROKER_ADDR
                   value: internalbroker.mashimaro.svc.cluster.local.:50501
-                - name: GAME_WRAPPER_ADDR
+                - name: GAME_PROCESS_ADDR
                   value: localhost:50501
                 - name: PULSE_ADDR
                   value: localhost:4713

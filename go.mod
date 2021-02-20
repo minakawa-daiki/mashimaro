@@ -13,7 +13,7 @@ require (
 	github.com/google/uuid v1.1.2
 	github.com/grpc-ecosystem/go-grpc-middleware v1.2.2
 	github.com/kelseyhightower/envconfig v1.4.0
-	github.com/notedit/gst v0.0.7
+	github.com/notedit/gst v0.0.9
 	github.com/pion/webrtc/v3 v3.0.1
 	github.com/pkg/errors v0.9.1
 	github.com/sclevine/agouti v3.0.0+incompatible

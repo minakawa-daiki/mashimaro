@@ -1,4 +1,4 @@
-package messaging
+package gameserver
 
 import "encoding/json"
 

@@ -6,22 +6,20 @@ import (
 	"log"
 	"sync"
 
-	"github.com/castaneai/mashimaro/pkg/gameserver"
-
 	"github.com/google/uuid"
 )
 
 type Store interface {
 	NewSession(ctx context.Context, req *NewSessionRequest) (*Session, error)
 	GetSession(ctx context.Context, sid SessionID) (*Session, error)
-	GetSessionByGameServerName(ctx context.Context, gsName string) (*Session, error)
+	GetSessionByAllocatedServerID(ctx context.Context, allocatedServerID string) (*Session, error)
 	UpdateSessionState(ctx context.Context, sid SessionID, newState State) error
 	DeleteSession(ctx context.Context, sid SessionID) error
 }
 
 type NewSessionRequest struct {
-	GameID     string
-	GameServer *gameserver.GameServer
+	GameID            string
+	AllocatedServerID string
 }
 
 var (
@@ -43,10 +41,10 @@ func NewInMemoryStore() *InMemoryStore {
 func (s *InMemoryStore) NewSession(ctx context.Context, req *NewSessionRequest) (*Session, error) {
 	sid := SessionID(uuid.Must(uuid.NewRandom()).String())
 	ss := &Session{
-		SessionID:      sid,
-		State:          StateWaitingForSession,
-		GameID:         req.GameID,
-		GameServerName: req.GameServer.Name,
+		SessionID:         sid,
+		State:             StateWaitingForSession,
+		GameID:            req.GameID,
+		AllocatedServerID: req.AllocatedServerID,
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -64,11 +62,11 @@ func (s *InMemoryStore) GetSession(ctx context.Context, sid SessionID) (*Session
 	return ss, nil
 }
 
-func (s *InMemoryStore) GetSessionByGameServerName(ctx context.Context, gsName string) (*Session, error) {
+func (s *InMemoryStore) GetSessionByAllocatedServerID(ctx context.Context, allocatedServerID string) (*Session, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	for _, ss := range s.sessions {
-		if ss.GameServerName == gsName {
+		if ss.AllocatedServerID == allocatedServerID {
 			return ss, nil
 		}
 	}

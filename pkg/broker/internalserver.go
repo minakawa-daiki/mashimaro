@@ -2,6 +2,7 @@ package broker
 
 import (
 	"context"
+	"time"
 
 	"github.com/pkg/errors"
 
@@ -12,7 +13,6 @@ import (
 	"github.com/castaneai/mashimaro/pkg/gamemetadata"
 	"github.com/castaneai/mashimaro/pkg/gamesession"
 	"github.com/castaneai/mashimaro/pkg/proto"
-	"github.com/goccy/go-yaml"
 )
 
 type internalServer struct {
@@ -27,45 +27,71 @@ func NewInternalServer(sessionStore gamesession.Store, metadataStore gamemetadat
 	}
 }
 
-func (s *internalServer) FindSession(ctx context.Context, req *proto.FindSessionRequest) (*proto.FindSessionResponse, error) {
-	ss, err := s.sessionStore.GetSessionByGameServerName(ctx, req.GameserverName)
-	if err == gamesession.ErrSessionNotFound {
-		return &proto.FindSessionResponse{Found: false}, nil
+func (s *internalServer) WatchSession(req *proto.WatchSessionRequest, stream proto.Broker_WatchSessionServer) error {
+	if req.AllocatedServerId == "" {
+		return status.Error(codes.FailedPrecondition, "invalid allocated server ID")
 	}
-	if err != nil {
-		return nil, err
+	ticker := time.NewTicker(1 * time.Second)
+	found := false
+	for {
+		select {
+		case <-stream.Context().Done():
+			return nil
+		case <-ticker.C:
+			ss, err := s.sessionStore.GetSessionByAllocatedServerID(stream.Context(), req.AllocatedServerId)
+			if err == gamesession.ErrSessionNotFound {
+				if found {
+					found = false
+					if err := stream.Send(&proto.WatchSessionResponse{
+						Found:   false,
+						Session: nil,
+					}); err != nil {
+						return err
+					}
+				}
+				continue
+			}
+			if err != nil {
+				return err
+			}
+			found = true
+			if err := stream.Send(&proto.WatchSessionResponse{
+				Found: found,
+				Session: &proto.Session{
+					SessionId:         string(ss.SessionID),
+					AllocatedServerId: ss.AllocatedServerID,
+					GameId:            ss.GameID,
+				},
+			}); err != nil {
+				return err
+			}
+		}
 	}
-	metadata, err := s.metadataStore.GetGameMetadata(ctx, ss.GameID)
+}
+
+func (s *internalServer) GetGameMetadata(ctx context.Context, req *proto.GetGameMetadataRequest) (*proto.GetGameMetadataResponse, error) {
+	metadata, err := s.metadataStore.GetGameMetadata(ctx, req.GameId)
 	if err == gamemetadata.ErrMetadataNotFound {
-		return nil, status.Newf(codes.FailedPrecondition, "game metadata not found(gameID: %s)", ss.GameID).Err()
+		return nil, status.Errorf(codes.FailedPrecondition, "game metadata not found(gameID: %s)", req.GameId)
 	}
 	if err != nil {
 		return nil, err
 	}
-	metadataBody, err := yaml.Marshal(metadata)
+	metadataBody, err := gamemetadata.Marshal(metadata)
 	if err != nil {
 		return nil, err
 	}
-	if err := s.sessionStore.UpdateSessionState(ctx, ss.SessionID, gamesession.StateSignaling); err != nil {
-		return nil, err
-	}
-	return &proto.FindSessionResponse{
-		Found: true,
-		Session: &proto.Session{
-			SessionId:    string(ss.SessionID),
-			GameMetadata: &proto.GameMetadata{Body: string(metadataBody)},
-		},
-	}, nil
+	return &proto.GetGameMetadataResponse{GameMetadata: &proto.GameMetadata{Body: string(metadataBody)}}, nil
 }
 
 func (s *internalServer) DeleteSession(ctx context.Context, req *proto.DeleteSessionRequest) (*proto.DeleteSessionResponse, error) {
 	sid := gamesession.SessionID(req.SessionId)
 	ss, err := s.sessionStore.GetSession(ctx, sid)
 	if errors.Is(err, gamesession.ErrSessionNotFound) {
-		return nil, status.Newf(codes.NotFound, "game session not found").Err()
+		return nil, status.Error(codes.NotFound, "game session not found")
 	}
-	if ss.GameServerName != req.GameserverName {
-		return nil, status.Newf(codes.FailedPrecondition, "invalid game server name").Err()
+	if ss.AllocatedServerID != req.AllocatedServerId {
+		return nil, status.Error(codes.FailedPrecondition, "invalid allocated server ID")
 	}
 	if err != nil {
 		return nil, err

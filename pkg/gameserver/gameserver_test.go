@@ -1,4 +1,4 @@
-package gameagent
+package gameserver
 
 import (
 	"context"
@@ -7,34 +7,27 @@ import (
 	"log"
 	"net"
 	"net/url"
-	"os"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/castaneai/mashimaro/pkg/allocator"
+
 	"github.com/pkg/errors"
 
-	"github.com/castaneai/mashimaro/pkg/streamer"
-
 	"github.com/BurntSushi/xgb/xproto"
-
-	"github.com/sclevine/agouti"
-
-	"github.com/castaneai/mashimaro/pkg/messaging"
 
 	"github.com/castaneai/mashimaro/pkg/ayame"
 	"github.com/castaneai/mashimaro/pkg/transport"
 	"github.com/pion/webrtc/v3"
-
-	"github.com/castaneai/mashimaro/pkg/gameserver"
 
 	"github.com/stretchr/testify/assert"
 
 	"github.com/castaneai/mashimaro/pkg/gamemetadata"
 
 	"github.com/castaneai/mashimaro/pkg/broker"
+	"github.com/castaneai/mashimaro/pkg/gameprocess"
 	"github.com/castaneai/mashimaro/pkg/gamesession"
-	"github.com/castaneai/mashimaro/pkg/gamewrapper"
 	"github.com/castaneai/mashimaro/pkg/proto"
 	"github.com/castaneai/mashimaro/pkg/testutils"
 	"google.golang.org/grpc"
@@ -66,24 +59,24 @@ func newInternalBrokerClient(t *testing.T, sstore gamesession.Store, mstore game
 	return proto.NewBrokerClient(cc)
 }
 
-func newGameWrapperClient(t *testing.T) proto.GameWrapperClient {
+func newGameProcessClient(t *testing.T) proto.GameProcessClient {
 	lis := testutils.ListenTCPWithRandomPort(t)
 	s := grpc.NewServer()
-	proto.RegisterGameWrapperServer(s, gamewrapper.NewGameWrapperServer())
+	proto.RegisterGameProcessServer(s, gameprocess.NewGameProcessServer())
 	go s.Serve(lis)
 	cc, err := grpc.Dial(lis.Addr().String(), grpc.WithInsecure())
 	if err != nil {
-		t.Fatalf("failed to dial to game wrapper: %+v", err)
+		t.Fatalf("failed to dial to game process: %+v", err)
 	}
-	return proto.NewGameWrapperClient(cc)
+	return proto.NewGameProcessClient(cc)
 }
 
-func sendMoveMessage(t *testing.T, conn transport.PlayerConn, msg *messaging.MoveMessage) {
+func sendMoveMessage(t *testing.T, conn transport.PlayerConn, msg *MoveMessage) {
 	bodyb, err := json.Marshal(msg)
 	if err != nil {
 		t.Fatal(err)
 	}
-	b, err := json.Marshal(&messaging.Message{Type: messaging.MessageTypeMove, Body: bodyb})
+	b, err := json.Marshal(&Message{Type: MessageTypeMove, Body: bodyb})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -93,20 +86,20 @@ func sendMoveMessage(t *testing.T, conn transport.PlayerConn, msg *messaging.Mov
 }
 
 func sendMouseMessage(t *testing.T, conn transport.PlayerConn, button xproto.Button, isDown bool) {
-	mtype := messaging.MessageTypeMouseDown
+	mtype := MessageTypeMouseDown
 	var msg interface{}
 	if isDown {
-		mtype = messaging.MessageTypeMouseDown
-		msg = &messaging.MouseDownMessage{Button: int(button)}
+		mtype = MessageTypeMouseDown
+		msg = &MouseDownMessage{Button: int(button)}
 	} else {
-		mtype = messaging.MessageTypeMouseUp
-		msg = messaging.MouseUpMessage{Button: int(button)}
+		mtype = MessageTypeMouseUp
+		msg = MouseUpMessage{Button: int(button)}
 	}
 	bodyb, err := json.Marshal(msg)
 	if err != nil {
 		t.Fatal(err)
 	}
-	b, err := json.Marshal(&messaging.Message{Type: mtype, Body: bodyb})
+	b, err := json.Marshal(&Message{Type: mtype, Body: bodyb})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -116,20 +109,20 @@ func sendMouseMessage(t *testing.T, conn transport.PlayerConn, button xproto.But
 }
 
 func sendKeyMessage(t *testing.T, conn transport.PlayerConn, key int, isDown bool) {
-	mtype := messaging.MessageTypeKeyDown
+	mtype := MessageTypeKeyDown
 	var msg interface{}
 	if isDown {
-		mtype = messaging.MessageTypeKeyDown
-		msg = &messaging.KeyDownMessage{Key: key}
+		mtype = MessageTypeKeyDown
+		msg = &KeyDownMessage{Key: key}
 	} else {
-		mtype = messaging.MessageTypeKeyUp
-		msg = messaging.KeyUpMessage{Key: key}
+		mtype = MessageTypeKeyUp
+		msg = KeyUpMessage{Key: key}
 	}
 	bodyb, err := json.Marshal(msg)
 	if err != nil {
 		t.Fatal(err)
 	}
-	b, err := json.Marshal(&messaging.Message{Type: mtype, Body: bodyb})
+	b, err := json.Marshal(&Message{Type: mtype, Body: bodyb})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -139,7 +132,7 @@ func sendKeyMessage(t *testing.T, conn transport.PlayerConn, key int, isDown boo
 }
 
 func sendExitGameMessage(t *testing.T, conn transport.PlayerConn) {
-	b, err := json.Marshal(&messaging.Message{Type: messaging.MessageTypeExitGame})
+	b, err := json.Marshal(&Message{Type: MessageTypeExitGame})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -148,13 +141,12 @@ func sendExitGameMessage(t *testing.T, conn transport.PlayerConn) {
 	}
 }
 
-func TestAgent(t *testing.T) {
+func TestGameServerLifecycle(t *testing.T) {
 	checkAyame(t)
 
 	ctx := context.Background()
-	gameServer := &gameserver.GameServer{
-		Name: "test-gs",
-		Addr: "dummy",
+	allocatedServer := &allocator.AllocatedServer{
+		ID: "test-gs",
 	}
 	gameMetadata := &gamemetadata.Metadata{
 		GameID:  "notepad",
@@ -164,31 +156,22 @@ func TestAgent(t *testing.T) {
 	mstore := gamemetadata.NewInMemoryMetadataStore()
 	err := mstore.AddGameMetadata(ctx, gameMetadata.GameID, gameMetadata)
 	assert.NoError(t, err)
-	bc := newInternalBrokerClient(t, sstore, mstore)
-	gwc := newGameWrapperClient(t)
-	signaler := NewAyameSignaler(ayameURL)
-
-	display := os.Getenv("DISPLAY")
+	brokerClient := newInternalBrokerClient(t, sstore, mstore)
+	gameProcessClient := newGameProcessClient(t)
+	signaler := transport.NewAyameSignaler(ayameURL)
 	ss, err := sstore.NewSession(ctx, &gamesession.NewSessionRequest{
-		GameID:     gameMetadata.GameID,
-		GameServer: gameServer,
+		GameID:            gameMetadata.GameID,
+		AllocatedServerID: allocatedServer.ID,
 	})
 	assert.NoError(t, err)
-	agent := NewAgent(bc, gwc, signaler)
-	agentExited := make(chan struct{})
-	agent.OnExit(func() {
-		close(agentExited)
+	gameServer := NewGameServer(allocatedServer, brokerClient, gameProcessClient, signaler)
+	shutdown := make(chan struct{})
+	gameServer.OnShutdown(func() {
+		close(shutdown)
 	})
-
-	videoConfig := &streamer.VideoConfig{
-		CaptureDisplay: display,
-		CaptureArea:    streamer.CaptureArea{},
-		X264Param:      "",
-	}
-	audioConfig := &streamer.AudioConfig{PulseServer: "localhost:4713"}
 	go func() {
-		if err := agent.Run(ctx, gameServer.Name, videoConfig, audioConfig); err != nil {
-			log.Printf("failed to run game agent: %+v", err)
+		if err := gameServer.Serve(ctx); err != nil {
+			log.Printf("failed to run game server: %+v", err)
 		}
 	}()
 
@@ -216,27 +199,27 @@ func TestAgent(t *testing.T) {
 	time.Sleep(1 * time.Second)
 
 	for i := 0; i < 10; i++ {
-		sendMoveMessage(t, conn, &messaging.MoveMessage{X: i * 10, Y: i * 10})
+		sendMoveMessage(t, conn, &MoveMessage{X: i * 10, Y: i * 10})
 		time.Sleep(10 * time.Millisecond)
 	}
 	sendMouseMessage(t, conn, xproto.ButtonIndex3, true)
 	sendMouseMessage(t, conn, xproto.ButtonIndex3, false)
 	time.Sleep(1 * time.Second)
 	sendExitGameMessage(t, conn)
-	<-agentExited
+	<-shutdown
 	time.Sleep(100 * time.Millisecond)
 	_, err = sstore.GetSession(ctx, ss.SessionID)
 	assert.True(t, errors.Is(err, gamesession.ErrSessionNotFound))
 }
 
+/*
 func TestVideoOnBrowser(t *testing.T) {
 	t.Skip("comment out this line if you want test video quality on browser(chromedriver required in your PATH)")
 	checkAyame(t)
 
 	ctx := context.Background()
-	gameServer := &gameserver.GameServer{
-		Name: "test-gs",
-		Addr: "dummy",
+	gameServer := &AllocatedServer{
+		ID:   "test-gs",
 	}
 	gameMetadata := &gamemetadata.Metadata{
 		GameID:  "notepad",
@@ -247,7 +230,7 @@ func TestVideoOnBrowser(t *testing.T) {
 	err := mstore.AddGameMetadata(ctx, gameMetadata.GameID, gameMetadata)
 	assert.NoError(t, err)
 	bc := newInternalBrokerClient(t, sstore, mstore)
-	gwc := newGameWrapperClient(t)
+	gwc := newGameProcessClient(t)
 	signaler := NewAyameSignaler(ayameURL)
 
 	display := os.Getenv("DISPLAY")
@@ -256,9 +239,9 @@ func TestVideoOnBrowser(t *testing.T) {
 		GameServer: gameServer,
 	})
 	assert.NoError(t, err)
-	agent := NewAgent(bc, gwc, signaler)
+	agent := NewGameServer(bc, gwc, signaler)
 	agentExited := make(chan struct{})
-	agent.OnExit(func() {
+	agent.OnShutdown(func() {
 		close(agentExited)
 	})
 	log.Printf("%s", ss.SessionID)
@@ -280,14 +263,15 @@ func TestVideoOnBrowser(t *testing.T) {
 
 	videoConfig := &streamer.VideoConfig{
 		CaptureDisplay: display,
-		CaptureArea:    streamer.CaptureArea{},
+		CaptureArea:    streamer.ScreenCaptureArea{},
 		X264Param:      "",
 	}
 	audioConfig := &streamer.AudioConfig{PulseServer: "localhost:4713"}
 	go func() {
-		if err := agent.Run(ctx, gameServer.Name, videoConfig, audioConfig); err != nil {
+		if err := agent.Serve(ctx, gameServer.ID, videoConfig, audioConfig); err != nil {
 			log.Printf("failed to run game agent: %+v", err)
 		}
 	}()
 	select {}
 }
+*/

@@ -10,16 +10,16 @@ build:
       context: .
       docker:
         dockerfile: services/broker/internalbroker/Dockerfile
-    - image: mashimaro/gameagent
+    - image: mashimaro/gameserver
       context: .
       docker:
-        dockerfile: services/gaming/gameagent/Dockerfile
+        dockerfile: services/gameserver/gameserver/Dockerfile
     - image: mashimaro/game
       context: .
       docker:
-        dockerfile: services/gaming/game/Dockerfile
+        dockerfile: services/gameserver/gameprocess/Dockerfile
     - image: mashimaro/pulseaudio
-      context: services/gaming/pulseaudio
+      context: services/gameserver/pulseaudio
       docker:
         dockerfile: Dockerfile
     - image: mashimaro/firestore

@@ -341,6 +341,10 @@ github.com/mwitkow/go-conntrack v0.0.0-20161129095857-cc309e4a2223/go.mod h1:qRW
 github.com/mxk/go-flowrate v0.0.0-20140419014527-cca7078d478f/go.mod h1:ZdcZmHo+o7JKHSa8/e818NopupXU1YMK5fe1lsApnBw=
 github.com/notedit/gst v0.0.7 h1:cRF13gCd2VdAuQW/WDpySVPlyt1i2NN03AlX+yILQSU=
 github.com/notedit/gst v0.0.7/go.mod h1:99yZ0oIrCg0xd2a1rn/1cjcUAHLAGTDxXLD1FQ5NpoM=
+github.com/notedit/gst v0.0.8 h1:qKiQlTx+XBAqwbGbIDAKHJAi1Sn6xCqsEv3t1NRItRg=
+github.com/notedit/gst v0.0.8/go.mod h1:99yZ0oIrCg0xd2a1rn/1cjcUAHLAGTDxXLD1FQ5NpoM=
+github.com/notedit/gst v0.0.9 h1:0Y9uHUZhqUQlr8f7OzV5xI4lCIWA/nry4Gd8J6oyaMk=
+github.com/notedit/gst v0.0.9/go.mod h1:99yZ0oIrCg0xd2a1rn/1cjcUAHLAGTDxXLD1FQ5NpoM=
 github.com/nxadm/tail v1.4.4 h1:DQuhQpB1tVlglWS2hLQ5OV6B5r8aGxSrPc5Qo6uTN78=
 github.com/nxadm/tail v1.4.4/go.mod h1:kenIhsEOeOJmVchQTgglprH7qJGnHDVpk1VPCcaMI8A=
 github.com/olekukonko/tablewriter v0.0.0-20170122224234-a0225b3f23b5/go.mod h1:vsDQFd/mU46D+Z4whnwzcISnGGzXWMclvtLoiIKAKIo=

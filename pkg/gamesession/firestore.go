@@ -28,10 +28,10 @@ func NewFirestoreStore(c *firestore.Client) *FirestoreStore {
 func (s *FirestoreStore) NewSession(ctx context.Context, req *NewSessionRequest) (*Session, error) {
 	sid := SessionID(uuid.Must(uuid.NewRandom()).String())
 	ss := &Session{
-		SessionID:      sid,
-		State:          StateWaitingForSession,
-		GameID:         req.GameID,
-		GameServerName: req.GameServer.Name,
+		SessionID:         sid,
+		State:             StateWaitingForSession,
+		GameID:            req.GameID,
+		AllocatedServerID: req.AllocatedServerID,
 	}
 	if _, _, err := s.c.Collection(s.collection).Add(ctx, ss); err != nil {
 		return nil, err
@@ -57,8 +57,8 @@ func (s *FirestoreStore) GetSession(ctx context.Context, sid SessionID) (*Sessio
 	return &ss, nil
 }
 
-func (s *FirestoreStore) GetSessionByGameServerName(ctx context.Context, gsName string) (*Session, error) {
-	ds, err := s.c.Collection(s.collection).Where("gameServerName", "==", gsName).Documents(ctx).Next()
+func (s *FirestoreStore) GetSessionByAllocatedServerID(ctx context.Context, allocatedServerID string) (*Session, error) {
+	ds, err := s.c.Collection(s.collection).Where("allocatedServerId", "==", allocatedServerID).Documents(ctx).Next()
 	if err == iterator.Done {
 		return nil, ErrSessionNotFound
 	}
