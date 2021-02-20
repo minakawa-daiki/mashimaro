@@ -45,23 +45,20 @@ func NewGstCapturer(pipelineStr, sinkName string) (*GstCapturer, error) {
 
 func (c *GstCapturer) Start() error {
 	log.Printf("Starting GStreamer pipeline: %s", c.pipelineStr)
-	ret := c.gstPipeline.SetState(gst.StatePlaying)
-	if ret == gst.StateChangeSuccess {
-		return nil
-	}
-	bus := c.gstPipeline.GetBus()
-	for {
-		msg := bus.Pull(gst.MessageAny)
-		switch msg.GetType() {
-		case gst.MessageStateChanged:
-			_, newState, _ := msg.ParseStateChanged()
-			if newState == gst.StatePlaying {
-				return nil
+	go func() {
+		bus := c.gstPipeline.GetBus()
+		for {
+			msg := bus.Pull(gst.MessageAny)
+			st := msg.GetStructure()
+			if st.C != nil {
+				log.Printf("[gst] %s", st.ToString())
+			} else {
+				log.Printf("[gst] %s", msg.GetName())
 			}
-		case gst.MessageError:
-			return fmt.Errorf("failed to start pipeline: %s", msg.GetStructure().ToString())
 		}
-	}
+	}()
+	c.gstPipeline.SetState(gst.StatePlaying)
+	return nil
 }
 
 func (c *GstCapturer) Close() error {

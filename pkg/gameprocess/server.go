@@ -41,6 +41,7 @@ func (s *gameProcessServer) StartGame(ctx context.Context, req *proto.StartGameR
 }
 
 func (s *gameProcessServer) ExitGame(ctx context.Context, req *proto.ExitGameRequest) (*proto.ExitGameResponse, error) {
+	log.Printf("on exit game request")
 	s.pidMu.Lock()
 	pid := s.pid
 	s.pidMu.Unlock()

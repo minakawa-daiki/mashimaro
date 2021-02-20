@@ -1,4 +1,10 @@
 FROM ubuntu:20.10 as builder
+
+# Use GCE apt servers
+ARG GCE_ZONE=asia-northeast1
+RUN cp /etc/apt/sources.list /etc/apt/sources.list.orig && \
+    sed -i "s/archive.ubuntu.com/${GCE_ZONE}.gce.archive.ubuntu.com/g" /etc/apt/sources.list
+
 ENV DEBIAN_FRONTEND noninteractive
 RUN apt update -y \
 	&& apt install -y wget tar gcc libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-base

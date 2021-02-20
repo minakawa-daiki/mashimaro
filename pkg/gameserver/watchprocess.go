@@ -2,12 +2,21 @@ package gameserver
 
 import (
 	"context"
+	"log"
 	"time"
+
+	"github.com/BurntSushi/xgb/xproto"
+
+	"github.com/pkg/errors"
 
 	"github.com/BurntSushi/xgbutil"
 	"github.com/castaneai/mashimaro/pkg/x11"
 
 	"github.com/castaneai/mashimaro/pkg/streamer"
+)
+
+var (
+	errNoWindows = errors.New("no windows")
 )
 
 func (s *GameServer) startWatchGame(ctx context.Context, pub *captureAreaPubSub) error {
@@ -26,30 +35,17 @@ func (s *GameServer) startListenCaptureArea(ctx context.Context, pub *captureAre
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-ticker.C:
-			windows, err := x11.EnumWindows(xu, xu.RootWin(), true)
-			if err != nil {
-				return err
-			}
-			if len(windows) == 0 {
+			area, err := getMainWindowArea(xu)
+			if err == errNoWindows {
 				continue
 			}
-			mainWindow, err := x11.GetMainWindow(xu, windows)
-			if err != nil {
-				return err
+			// BadWindow
+			if errors.Is(err, xproto.WindowError{}) {
+				continue
 			}
-			x, y, err := x11.GetWindowPositionOnScreen(xu, xu.Screen(), mainWindow)
 			if err != nil {
-				return err
-			}
-			width, height, err := x11.GetWindowSize(xu, mainWindow)
-			if err != nil {
-				return err
-			}
-			area := &streamer.ScreenCaptureArea{
-				StartX: x,
-				StartY: y,
-				EndX:   x + width - 1,
-				EndY:   y + height - 1,
+				log.Printf("failed to get main window area: %+v", err)
+				continue
 			}
 			if area.IsValid() && areaHasChanged(area, &captureArea) {
 				captureArea = *area
@@ -57,6 +53,34 @@ func (s *GameServer) startListenCaptureArea(ctx context.Context, pub *captureAre
 			}
 		}
 	}
+}
+
+func getMainWindowArea(xu *xgbutil.XUtil) (*streamer.ScreenCaptureArea, error) {
+	windows, err := x11.EnumWindows(xu, xu.RootWin(), true)
+	if err != nil {
+		return nil, err
+	}
+	if len(windows) == 0 {
+		return nil, errNoWindows
+	}
+	mainWindow, err := x11.GetMainWindow(xu, windows)
+	if err != nil {
+		return nil, err
+	}
+	x, y, err := x11.GetWindowPositionOnScreen(xu, xu.Screen(), mainWindow)
+	if err != nil {
+		return nil, err
+	}
+	width, height, err := x11.GetWindowSize(xu, mainWindow)
+	if err != nil {
+		return nil, err
+	}
+	return &streamer.ScreenCaptureArea{
+		StartX: x,
+		StartY: y,
+		EndX:   x + width - 1,
+		EndY:   y + height - 1,
+	}, nil
 }
 
 func areaHasChanged(a1, a2 *streamer.ScreenCaptureArea) bool {
