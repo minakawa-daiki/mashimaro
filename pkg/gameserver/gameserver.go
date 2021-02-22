@@ -7,6 +7,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/castaneai/mashimaro/pkg/streamer"
+
 	"github.com/castaneai/mashimaro/pkg/gamemetadata"
 
 	"github.com/castaneai/mashimaro/pkg/allocator"
@@ -14,8 +16,6 @@ import (
 	"github.com/castaneai/mashimaro/pkg/transport"
 
 	"github.com/pkg/errors"
-
-	"github.com/castaneai/mashimaro/pkg/streamer"
 
 	"github.com/castaneai/mashimaro/pkg/gamesession"
 
@@ -43,16 +43,18 @@ type GameServer struct {
 	allocatedServer *allocator.AllocatedServer
 	broker          proto.BrokerClient
 	gameProcess     proto.GameProcessClient
+	streamer        proto.StreamerClient
 	signaler        transport.WebRTCSignaler
 	onShutdown      func()
 	callbackMu      sync.Mutex
 }
 
-func NewGameServer(allocatedServer *allocator.AllocatedServer, broker proto.BrokerClient, gameProcess proto.GameProcessClient, signaler transport.WebRTCSignaler) *GameServer {
+func NewGameServer(allocatedServer *allocator.AllocatedServer, broker proto.BrokerClient, gameProcess proto.GameProcessClient, streamer proto.StreamerClient, signaler transport.WebRTCSignaler) *GameServer {
 	return &GameServer{
 		allocatedServer: allocatedServer,
 		broker:          broker,
 		gameProcess:     gameProcess,
+		streamer:        streamer,
 		signaler:        signaler,
 	}
 }

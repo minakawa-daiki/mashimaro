@@ -11,6 +11,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/castaneai/mashimaro/pkg/streamer/streamerserver"
+
 	"github.com/castaneai/mashimaro/pkg/allocator"
 
 	"github.com/pkg/errors"
@@ -69,6 +71,18 @@ func newGameProcessClient(t *testing.T) proto.GameProcessClient {
 		t.Fatalf("failed to dial to game process: %+v", err)
 	}
 	return proto.NewGameProcessClient(cc)
+}
+
+func newStreamerClient(t *testing.T) proto.StreamerClient {
+	lis := testutils.ListenTCPWithRandomPort(t)
+	s := grpc.NewServer()
+	proto.RegisterStreamerServer(s, streamerserver.NewStreamerServer())
+	go s.Serve(lis)
+	cc, err := grpc.Dial(lis.Addr().String(), grpc.WithInsecure())
+	if err != nil {
+		t.Fatalf("failed to dial to game process: %+v", err)
+	}
+	return proto.NewStreamerClient(cc)
 }
 
 func sendMoveMessage(t *testing.T, conn transport.PlayerConn, msg *MoveMessage) {
@@ -158,13 +172,14 @@ func TestGameServerLifecycle(t *testing.T) {
 	assert.NoError(t, err)
 	brokerClient := newInternalBrokerClient(t, sstore, mstore)
 	gameProcessClient := newGameProcessClient(t)
+	streamerClient := newStreamerClient(t)
 	signaler := transport.NewAyameSignaler(ayameURL)
 	ss, err := sstore.NewSession(ctx, &gamesession.NewSessionRequest{
 		GameID:            gameMetadata.GameID,
 		AllocatedServerID: allocatedServer.ID,
 	})
 	assert.NoError(t, err)
-	gameServer := NewGameServer(allocatedServer, brokerClient, gameProcessClient, signaler)
+	gameServer := NewGameServer(allocatedServer, brokerClient, gameProcessClient, streamerClient, signaler)
 	shutdown := make(chan struct{})
 	gameServer.OnShutdown(func() {
 		close(shutdown)
