@@ -5,12 +5,12 @@ import (
 	"log"
 	"time"
 
+	"github.com/castaneai/mashimaro/pkg/streamer"
+
 	"github.com/pkg/errors"
 
 	"github.com/BurntSushi/xgbutil"
 	"github.com/castaneai/mashimaro/pkg/x11"
-
-	"github.com/castaneai/mashimaro/pkg/streamer"
 )
 
 var (

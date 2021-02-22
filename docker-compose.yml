@@ -35,6 +35,7 @@ services:
       AYAME_LABO_URL: wss://ayame-labo.shiguredo.jp/signaling
       INTERNAL_BROKER_ADDR: internalbroker:50501
       GAME_PROCESS_ADDR: gameprocess:50501
+      STREAMER_ADDR: localhost:50502
       PULSE_ADDR: localhost:4713
       USE_MOCK_ALLOCATOR: 1
       DISPLAY: ":0"
@@ -42,8 +43,6 @@ services:
       - .env
     volumes:
       - x11socket:/tmp/.X11-unix/
-      - appconfig:/var/run/appconfig
-    ipc: host
     restart: always
   gameprocess:
     build:
@@ -61,6 +60,19 @@ services:
       - appconfig:/var/run/appconfig
     ipc: host
     restart: always
+  streamer:
+    build:
+      context: .
+      dockerfile: services/gameserver/streamer/Dockerfile
+    environment:
+      DISPLAY: ":0"
+      PORT: 50502
+    volumes:
+      - x11socket:/tmp/.X11-unix/
+      - appconfig:/var/run/appconfig
+    restart: always
+    ipc: host
+    network_mode: service:gameserver
   pulseaudio:
     build: services/gameserver/pulseaudio
     network_mode: service:gameserver

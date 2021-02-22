@@ -1,9 +1,16 @@
 package gameserver
 
 import (
+	"bufio"
 	"context"
+	"fmt"
 	"log"
+	"net"
 	"os"
+
+	"github.com/castaneai/mashimaro/pkg/streamer/streamerproto"
+
+	"github.com/castaneai/mashimaro/pkg/proto"
 
 	"github.com/castaneai/mashimaro/pkg/streamer"
 	"github.com/castaneai/mashimaro/pkg/transport"
@@ -16,29 +23,50 @@ const (
 func (s *GameServer) startStreaming(ctx context.Context, conn transport.StreamerConn, captureAreaChanged <-chan *streamer.ScreenCaptureArea) error {
 	log.Printf("waiting for capture area has changed")
 	area := <-captureAreaChanged
-	videoCapturer, err := streamer.NewX11Capturer(&streamer.X11CaptureConfig{
-		Display: os.Getenv("DISPLAY"),
-		Area:    area,
-	}, &streamer.X264EncodeConfig{X264Params: defaultX264Params})
-	if err != nil {
-		return err
-	}
-	audioCapturer, err := streamer.NewPulseAudioCapturer(&streamer.PulseAudioCaptureConfig{PulseServer: "localhost:4713"}, &streamer.OpusEncodeConfig{})
-	if err != nil {
-		return err
-	}
-	st := streamer.NewStreamer(conn, videoCapturer, audioCapturer)
-	log.Printf("start streaming")
 
-	streamErrCh := make(chan error)
+	videoCapturer := streamer.NewX264Encoder(
+		streamer.NewX11ScreenCapturer(os.Getenv("DISPLAY"), area),
+		defaultX264Params,
+	)
+	gstPipeline, err := videoCapturer.CompileGstPipeline()
+	if err != nil {
+		return err
+	}
+	// TODO: audio
+	log.Printf("start streaming")
+	resp, err := s.streamer.StartVideoStreaming(ctx, &proto.StartVideoStreamingRequest{GstPipeline: gstPipeline})
+	if err != nil {
+		return err
+	}
+	errCh := make(chan error)
 	go func() {
-		streamErrCh <- st.Start(ctx)
+		streamConn, err := net.Dial("tcp", fmt.Sprintf("localhost:%d", resp.ListenPort))
+		if err != nil {
+			errCh <- err
+			return
+		}
+		r := bufio.NewReader(streamConn)
+		for {
+			var sp streamerproto.SamplePacket
+			if err := streamerproto.ReadSamplePacket(r, &sp); err != nil {
+				errCh <- err
+				return
+			}
+			if err := conn.SendVideoSample(ctx, transport.MediaSample{
+				Data:     sp.Data,
+				Duration: sp.Duration,
+			}); err != nil {
+				errCh <- err
+				return
+			}
+		}
 	}()
 	for {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case err := <-streamErrCh:
+		case err := <-errCh:
+			// TODO: retry streaming
 			return err
 		case <-captureAreaChanged:
 			// TODO: change capture area

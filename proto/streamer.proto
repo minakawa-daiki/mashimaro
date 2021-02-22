@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+option go_package = "proto";
+
+service Streamer {
+  rpc StartVideoStreaming(StartVideoStreamingRequest) returns (StartVideoStreamingResponse) {}
+}
+
+message StartVideoStreamingRequest {
+  string gst_pipeline = 1;
+}
+
+message StartVideoStreamingResponse {
+  uint32 listen_port = 1;
+}

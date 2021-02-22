@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/castaneai/mashimaro/pkg/streamer"
+
 	"github.com/pkg/errors"
 
 	"github.com/BurntSushi/xgbutil"
@@ -13,7 +15,6 @@ import (
 
 	"github.com/BurntSushi/xgb/xproto"
 	"github.com/castaneai/mashimaro/pkg/proto"
-	"github.com/castaneai/mashimaro/pkg/streamer"
 )
 
 var (
