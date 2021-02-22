@@ -99,12 +99,24 @@ type PulseAudioCapturer struct {
 	PulseServer string
 }
 
+func NewPulseAudioCapturer(pulseServer string) *PulseAudioCapturer {
+	return &PulseAudioCapturer{
+		PulseServer: pulseServer,
+	}
+}
+
 func (c *PulseAudioCapturer) CompileGstPipeline() (string, error) {
-	return fmt.Sprintf("pulsesrc server=%s", c.PulseServer), nil
+	return fmt.Sprintf("pulsesrc server=%s provide-clock=1 do-timestamp=1", c.PulseServer), nil
 }
 
 type OpusEncoder struct {
 	srcPipeline GstPipeliner
+}
+
+func NewOpusEncoder(srcPipeline GstPipeliner) *OpusEncoder {
+	return &OpusEncoder{
+		srcPipeline: srcPipeline,
+	}
 }
 
 func (e *OpusEncoder) CompileGstPipeline() (string, error) {

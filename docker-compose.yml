@@ -35,7 +35,8 @@ services:
       AYAME_LABO_URL: wss://ayame-labo.shiguredo.jp/signaling
       INTERNAL_BROKER_ADDR: internalbroker:50501
       GAME_PROCESS_ADDR: gameprocess:50501
-      STREAMER_ADDR: localhost:50502
+      STREAMER_HOST: streamer
+      STREAMER_ADDR: streamer:50502
       PULSE_ADDR: localhost:4713
       USE_MOCK_ALLOCATOR: 1
       DISPLAY: ":0"
@@ -51,7 +52,7 @@ services:
     environment:
       DISPLAY: ":0"
       PORT: 50501
-      PULSE_SERVER: gameserver:4713
+      PULSE_SERVER: streamer:4713
     security_opt:
       - seccomp:unconfined # to avoid clock_getres() failure with EPERM on i386 pulseaudio + macOS
     volumes:
@@ -67,15 +68,15 @@ services:
     environment:
       DISPLAY: ":0"
       PORT: 50502
+      GST_DEBUG: "default:4"
     volumes:
       - x11socket:/tmp/.X11-unix/
       - appconfig:/var/run/appconfig
     restart: always
     ipc: host
-    network_mode: service:gameserver
   pulseaudio:
     build: services/gameserver/pulseaudio
-    network_mode: service:gameserver
+    network_mode: service:streamer
     restart: always
   xserver:
     build: services/gameserver/xserver

@@ -4,6 +4,7 @@ option go_package = "proto";
 
 service Streamer {
   rpc StartVideoStreaming(StartVideoStreamingRequest) returns (StartVideoStreamingResponse) {}
+  rpc StartAudioStreaming(StartAudioStreamingRequest) returns (StartAudioStreamingResponse) {}
 }
 
 message StartVideoStreamingRequest {
@@ -11,5 +12,13 @@ message StartVideoStreamingRequest {
 }
 
 message StartVideoStreamingResponse {
+  uint32 listen_port = 1;
+}
+
+message StartAudioStreamingRequest {
+  string gst_pipeline = 1;
+}
+
+message StartAudioStreamingResponse {
   uint32 listen_port = 1;
 }

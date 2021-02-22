@@ -25,7 +25,7 @@ func TestGstServer(t *testing.T) {
 	assert.True(t, sp.Duration > 0)
 	assert.True(t, len(sp.Data) > 0)
 	conn.Close()
-	time.Sleep(500 * time.Millisecond)
+	time.Sleep(100 * time.Millisecond)
 	gs.Stop()
 	assert.Nil(t, <-serveErr)
 }

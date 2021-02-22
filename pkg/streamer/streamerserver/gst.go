@@ -1,6 +1,7 @@
 package streamerserver
 
 import (
+	"fmt"
 	"io"
 	"log"
 	"net"
@@ -44,6 +45,8 @@ func newGstServer(lis net.Listener) *GstServer {
 }
 
 func (g *GstServer) Addr() net.Addr {
+	g.mu.Lock()
+	defer g.mu.Unlock()
 	return g.lis.Addr()
 }
 
@@ -56,36 +59,28 @@ func (g *GstServer) Serve(pipelineStr string) error {
 	src := pipeline.GetByName("out")
 	g.mu.Lock()
 	g.pipeline = pipeline
+	lis := g.lis
 	g.mu.Unlock()
-	for {
-		log.Printf("waiting for connection...")
-		conn, err := g.lis.Accept()
-		if err != nil {
-			if strings.Contains(err.Error(), "use of closed network connection") {
-				return nil
-			}
-			log.Printf("failed to accept conn: %+v", err)
-			continue
+	log.Printf("waiting for connection on %v...", lis.Addr())
+	conn, err := lis.Accept()
+	if err != nil {
+		if strings.Contains(err.Error(), "use of closed network connection") {
+			return nil
 		}
-		g.mu.Lock()
-		g.conn = conn
-		g.mu.Unlock()
-		log.Printf("accepted new conn")
-		if err := g.setPipelineState(gst.StatePlaying); err != nil {
-			log.Printf("failed to set pipeline state: %+v", err)
-			continue
-		}
-		log.Printf("pipeline started: %s", pipelineStr)
-		g.serveSample(conn, src)
+		return errors.Wrap(err, "failed to accept conn")
 	}
+	g.mu.Lock()
+	g.conn = conn
+	g.mu.Unlock()
+	log.Printf("accepted new conn")
+	if err := g.startPipeline(); err != nil {
+		return err
+	}
+	log.Printf("pipeline started: %s", pipelineStr)
+	return g.serveSample(conn, src)
 }
 
-func (g *GstServer) setPipelineState(state gst.StateOptions) error {
-	g.mu.Lock()
-	defer g.mu.Unlock()
-	if g.pipeline == nil {
-		return nil
-	}
+func (g *GstServer) setPipelineStateLocked(state gst.StateOptions) error {
 	ret := g.pipeline.SetState(state)
 	switch ret {
 	case gst.StateChangeSuccess:
@@ -95,36 +90,53 @@ func (g *GstServer) setPipelineState(state gst.StateOptions) error {
 		g.pipeline.GetBus().Pull(gst.MessageAsyncDone)
 		return nil
 	default:
-		return errors.New("failed to set state to playing")
+		return fmt.Errorf("failed to set state to playing (return: %v)", ret)
 	}
 }
 
-func (g *GstServer) serveSample(w io.Writer, src *gst.Element) {
+func (g *GstServer) serveSample(w io.Writer, src *gst.Element) error {
 	defer g.stopPipeline()
 	for {
 		sample, err := src.PullSample()
 		if err != nil {
-			log.Printf("failed to pull sample: %+v", err)
-			return
+			if src.IsEOS() {
+				return errors.New("received EOS when trying to pull sample")
+			}
+			return errors.Wrap(err, "failed to pull sample")
 		}
 		packet := streamerproto.SamplePacket{
 			Data:     sample.Data,
 			Duration: time.Duration(sample.Duration),
 		}
 		if err := streamerproto.WriteSamplePacket(w, &packet); err != nil {
-			if errors.Is(err, syscall.EPIPE) {
-				return
+			if errors.Is(err, syscall.EPIPE) || errors.Is(err, syscall.ECONNRESET) {
+				log.Printf("streaming client disconnected")
+				return nil
 			}
-			log.Printf("failed to write sample packet: %+v", err)
-			return
+			return errors.Wrap(err, "failed to write sample packet")
 		}
 	}
 }
 
+func (g *GstServer) startPipeline() error {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if err := g.setPipelineStateLocked(gst.StatePlaying); err != nil {
+		return fmt.Errorf("failed to stop pipeline: %+v", err)
+	}
+	return nil
+}
+
 func (g *GstServer) stopPipeline() {
-	if err := g.setPipelineState(gst.StateNull); err != nil {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if g.pipeline == nil {
+		return
+	}
+	if err := g.setPipelineStateLocked(gst.StateNull); err != nil {
 		log.Printf("failed to stop pipeline: %+v", err)
 	}
+	g.pipeline = nil
 	log.Printf("pipeline stopped")
 }
 
@@ -134,11 +146,17 @@ func (g *GstServer) Stop() {
 	defer g.mu.Unlock()
 	if g.conn != nil {
 		_ = g.conn.Close()
+		g.conn = nil
 	}
-	if err := g.lis.Close(); err != nil {
-		log.Printf("faild to close listener")
+	if g.lis != nil {
+		if err := g.lis.Close(); err != nil {
+			if !strings.Contains(err.Error(), "use of closed network connection") {
+				log.Printf("failed to close listener: %+v", err)
+			}
+		}
+		g.lis = nil
+		log.Printf("listener was closed")
 	}
-	log.Printf("listener was closed")
 }
 
 func listenTCPWithRandomPort() (*net.TCPListener, error) {

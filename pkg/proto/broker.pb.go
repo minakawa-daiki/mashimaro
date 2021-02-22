@@ -24,6 +24,8 @@ It has these top-level messages:
 	ExitGameResponse
 	StartVideoStreamingRequest
 	StartVideoStreamingResponse
+	StartAudioStreamingRequest
+	StartAudioStreamingResponse
 */
 package proto
 

@@ -54,6 +54,6 @@ func (s *gameProcessServer) ExitGame(ctx context.Context, req *proto.ExitGameReq
 		return nil, status.Error(codes.NotFound, "process not found")
 	}
 	log.Printf("trying to kill game process")
-	_ = p.Signal(os.Interrupt)
+	_ = p.Kill()
 	return &proto.ExitGameResponse{}, nil
 }
