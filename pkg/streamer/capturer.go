@@ -37,7 +37,7 @@ func (c *X11ScreenCapturer) CompileGstPipeline() (string, error) {
 		endY = 0
 	}
 	// why use-damage=0?: https://github.com/GoogleCloudPlatform/selkies-vdi/blob/0da21b7c9432bd5c99f1f9f7c541ac9c583f9ef4/images/gst-webrtc-app/gstwebrtc_app.py#L148
-	return fmt.Sprintf("ximagesrc display-name=%s remote=1 use-damage=0 startx=%d starty=%d endx=%d endy=%d",
+	return fmt.Sprintf("ximagesrc display-name=%s remote=1 use-damage=0 startx=%d starty=%d endx=%d endy=%d ! video/x-raw,framerate=60/1",
 		c.captureDisplay, startX, startY, endX, endY), nil
 }
 
