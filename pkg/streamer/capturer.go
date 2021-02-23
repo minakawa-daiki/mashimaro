@@ -106,7 +106,7 @@ func NewPulseAudioCapturer(pulseServer string) *PulseAudioCapturer {
 }
 
 func (c *PulseAudioCapturer) CompileGstPipeline() (string, error) {
-	return fmt.Sprintf("pulsesrc server=%s provide-clock=1 do-timestamp=1", c.PulseServer), nil
+	return fmt.Sprintf("pulsesrc server=%s provide-clock=1 do-timestamp=1 buffer-time=2000000", c.PulseServer), nil
 }
 
 type OpusEncoder struct {
