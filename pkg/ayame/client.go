@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"log"
+	"strings"
 	"sync"
 
 	"github.com/pion/webrtc/v3"
@@ -77,6 +78,10 @@ func (c *Client) signaling(ctx context.Context, url_ string, req *ConnectRequest
 }
 
 func (c *Client) recv(ctx context.Context) {
+	defer func() {
+		_ = c.conn.Close()
+		log.Printf("disconnected from ayame")
+	}()
 	for {
 		select {
 		case <-ctx.Done():
@@ -84,7 +89,7 @@ func (c *Client) recv(ctx context.Context) {
 		default:
 			var msg receivedMessage
 			if err := websocket.JSON.Receive(c.conn, &msg); err != nil {
-				if errors.Is(err, io.EOF) {
+				if errors.Is(err, io.EOF) || strings.Contains(err.Error(), "use of closed network connection") {
 					break
 				}
 				log.Printf("failed to receive JSON: %+v", err)
@@ -183,6 +188,7 @@ func (c *Client) handleMessage(msg *receivedMessage) {
 			return
 		}
 		if candMsg.ICECandidate != nil {
+			log.Printf("[%s] add ice candidate from remote peer: %s", c.cid, candMsg.ICECandidate.Candidate)
 			if err := c.pc.AddICECandidate(*candMsg.ICECandidate); err != nil {
 				log.Printf("failed to add ice candidate: %+v", err)
 				return
@@ -190,6 +196,9 @@ func (c *Client) handleMessage(msg *receivedMessage) {
 		}
 	case "bye":
 		log.Printf("[%s] bye received from ayame", c.cid)
+		_ = c.conn.Close()
+	case "error":
+		log.Printf("[%s] error received from ayame: %s", c.cid, string(msg.Payload))
 	default:
 		log.Printf("unknown type received: %s", msg.Type)
 	}
