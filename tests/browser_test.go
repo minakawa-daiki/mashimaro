@@ -29,6 +29,7 @@ import (
 )
 
 const (
+	testHtmlFile      = "test.html"
 	testOggFile       = "example.ogg"
 	streamerServer    = "localhost:50502"
 	streamerAudioPort = 50601 // see docker-compose.yml
@@ -82,7 +83,7 @@ func TestAudio(t *testing.T) {
 				t.Fatalf("Failed to get working directory: %v", errPwd)
 			}
 			if err := page.Navigate(
-				fmt.Sprintf("file://%s/audio_test.html", pwd),
+				fmt.Sprintf("file://%s/%s", pwd, testHtmlFile),
 			); err != nil {
 				t.Fatalf("Failed to navigate: %v", err)
 			}
