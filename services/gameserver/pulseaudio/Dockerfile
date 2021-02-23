@@ -9,4 +9,4 @@ ENV DEBIAN_FRONTEND noninteractive
 RUN apt update -y && apt install -y pulseaudio
 COPY default.pa /etc/pulse/default.pa
 COPY entrypoint.sh /entrypoint.sh
-ENTRYPOINT ["/entrypoint.sh"]
+ENTRYPOINT /usr/bin/pulseaudio --exit-idle-time=-1 --verbose --log-target=stderr
