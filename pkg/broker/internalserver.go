@@ -39,6 +39,7 @@ func (s *internalServer) WatchSession(req *proto.WatchSessionRequest, stream pro
 		case <-stream.Context().Done():
 			return nil
 		case <-ticker.C:
+			log.Printf("watch session for allocated server(%s)", req.AllocatedServerId)
 			ss, err := s.sessionStore.GetSessionByAllocatedServerID(stream.Context(), req.AllocatedServerId)
 			if err == gamesession.ErrSessionNotFound {
 				if found {
