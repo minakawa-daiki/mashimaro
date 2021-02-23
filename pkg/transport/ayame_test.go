@@ -1,4 +1,4 @@
-package ayame
+package transport
 
 import (
 	"context"
@@ -9,7 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/castaneai/mashimaro/pkg/transport"
+	"github.com/castaneai/mashimaro/pkg/ayame"
+
 	"github.com/pion/webrtc/v3"
 	"github.com/stretchr/testify/assert"
 )
@@ -31,13 +32,13 @@ func checkAyame(t *testing.T) {
 func TestSignaling(t *testing.T) {
 	checkAyame(t)
 
-	conn1, err := transport.NewWebRTCStreamerConn(webrtc.Configuration{})
+	conn1, err := NewWebRTCStreamerConn(webrtc.Configuration{})
 	assert.NoError(t, err)
 	conn1Connected := make(chan struct{})
 	conn1.OnConnect(func() {
 		close(conn1Connected)
 	})
-	conn2, err := transport.NewWebRTCPlayerConn(webrtc.Configuration{})
+	conn2, err := NewWebRTCPlayerConn(webrtc.Configuration{})
 	assert.NoError(t, err)
 	conn2Connected := make(chan struct{})
 	conn2.OnConnect(func() {
@@ -46,16 +47,16 @@ func TestSignaling(t *testing.T) {
 
 	rid := "test-room"
 	ctx := context.Background()
-	c1 := NewClient(conn1.PeerConnection())
-	if err := c1.Connect(ctx, ayameURL, &ConnectRequest{
+	c1 := ayame.NewClient(conn1.PeerConnection())
+	if err := c1.Connect(ctx, ayameURL, &ayame.ConnectRequest{
 		RoomID:   rid,
 		ClientID: "client1",
 	}); err != nil {
 		t.Fatal(err)
 	}
 
-	c2 := NewClient(conn2.PeerConnection())
-	if err := c2.Connect(ctx, ayameURL, &ConnectRequest{
+	c2 := ayame.NewClient(conn2.PeerConnection())
+	if err := c2.Connect(ctx, ayameURL, &ayame.ConnectRequest{
 		RoomID:   rid,
 		ClientID: "client2",
 	}); err != nil {
@@ -80,13 +81,13 @@ func TestSignalingViaAyameLabo(t *testing.T) {
 		t.Skip("AYAME_LABO_GITHUB_ACCOUNT not set")
 	}
 
-	conn1, err := transport.NewWebRTCStreamerConn(webrtc.Configuration{})
+	conn1, err := NewWebRTCStreamerConn(webrtc.Configuration{})
 	assert.NoError(t, err)
 	conn1Connected := make(chan struct{})
 	conn1.OnConnect(func() {
 		close(conn1Connected)
 	})
-	conn2, err := transport.NewWebRTCPlayerConn(webrtc.Configuration{})
+	conn2, err := NewWebRTCPlayerConn(webrtc.Configuration{})
 	assert.NoError(t, err)
 	conn2Connected := make(chan struct{})
 	conn2.OnConnect(func() {
@@ -95,8 +96,8 @@ func TestSignalingViaAyameLabo(t *testing.T) {
 
 	rid := fmt.Sprintf("%s@%s", githubAccount, "test-room")
 	ctx := context.Background()
-	c1 := NewClient(conn1.PeerConnection())
-	if err := c1.Connect(ctx, ayameLaboURL, &ConnectRequest{
+	c1 := ayame.NewClient(conn1.PeerConnection())
+	if err := c1.Connect(ctx, ayameLaboURL, &ayame.ConnectRequest{
 		RoomID:       rid,
 		ClientID:     "client1",
 		SignalingKey: signalingKey,
@@ -104,8 +105,8 @@ func TestSignalingViaAyameLabo(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	c2 := NewClient(conn2.PeerConnection())
-	if err := c2.Connect(ctx, ayameLaboURL, &ConnectRequest{
+	c2 := ayame.NewClient(conn2.PeerConnection())
+	if err := c2.Connect(ctx, ayameLaboURL, &ayame.ConnectRequest{
 		RoomID:       rid,
 		ClientID:     "client2",
 		SignalingKey: signalingKey,
