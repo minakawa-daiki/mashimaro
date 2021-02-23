@@ -19,16 +19,16 @@ type InMemoryStore struct {
 	mu    sync.RWMutex
 }
 
-func NewInMemoryMetadataStore() *InMemoryStore {
+func NewInMemoryStore() *InMemoryStore {
 	return &InMemoryStore{
 		metas: make(map[string]*Metadata),
 	}
 }
 
-func (s *InMemoryStore) AddGameMetadata(ctx context.Context, gameID string, metadata *Metadata) error {
+func (s *InMemoryStore) AddGameMetadata(ctx context.Context, metadata *Metadata) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.metas[gameID] = metadata
+	s.metas[metadata.GameID] = metadata
 	return nil
 }
 

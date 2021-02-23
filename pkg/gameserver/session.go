@@ -2,6 +2,7 @@ package gameserver
 
 import (
 	"context"
+	"time"
 
 	"github.com/castaneai/mashimaro/pkg/gamesession"
 
@@ -9,27 +10,29 @@ import (
 )
 
 func (s *GameServer) startWatchSession(ctx context.Context, created chan<- *gamesession.Session, deleted chan<- struct{}) error {
-	stream, err := s.broker.WatchSession(ctx, &proto.WatchSessionRequest{AllocatedServerId: s.allocatedServer.ID})
-	if err != nil {
-		return err
-	}
+	ticker := time.NewTicker(1 * time.Second)
 	sessionFound := false
 	for {
-		resp, err := stream.Recv()
-		if err != nil {
-			return err
-		}
-		if !sessionFound && resp.Found {
-			sessionFound = true
-			created <- &gamesession.Session{
-				SessionID: gamesession.SessionID(resp.Session.SessionId),
-				// TODO: State
-				GameID:            resp.Session.GameId,
-				AllocatedServerID: resp.Session.AllocatedServerId,
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-ticker.C:
+			resp, err := s.broker.FindSession(ctx, &proto.FindSessionRequest{AllocatedServerId: s.allocatedServer.ID})
+			if err != nil {
+				return err
 			}
-		} else if sessionFound && !resp.Found {
-			sessionFound = false
-			deleted <- struct{}{}
+			if !sessionFound && resp.Found {
+				sessionFound = true
+				created <- &gamesession.Session{
+					SessionID: gamesession.SessionID(resp.Session.SessionId),
+					// TODO: State
+					GameID:            resp.Session.GameId,
+					AllocatedServerID: resp.Session.AllocatedServerId,
+				}
+			} else if sessionFound && !resp.Found {
+				sessionFound = false
+				deleted <- struct{}{}
+			}
 		}
 	}
 }

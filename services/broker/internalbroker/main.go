@@ -39,7 +39,7 @@ func main() {
 	sessionStore := gamesession.NewFirestoreStore(fc)
 	metadataStore := gamemetadata.NewFirestoreStore(fc)
 	s := grpc.NewServer()
-	proto.RegisterBrokerServer(s, broker.NewInternalServer(sessionStore, metadataStore))
+	proto.RegisterBrokerServer(s, broker.NewInternalBroker(sessionStore, metadataStore))
 
 	addr := fmt.Sprintf(":%s", conf.Port)
 	lis, err := net.Listen("tcp", addr)

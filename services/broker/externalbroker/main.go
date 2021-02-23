@@ -47,8 +47,8 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to new allocator: %+v", err)
 	}
-	s := broker.NewExternalServer(sessionStore, metadataStore, allocator)
-	http.Handle("/", s.Handler())
+	s := broker.NewExternalBroker(sessionStore, metadataStore, allocator)
+	http.Handle("/", s.HTTPHandler())
 	addr := fmt.Sprintf(":%s", conf.Port)
 	log.Printf("mashimaro external broker is listening on %s...", addr)
 	log.Fatal(http.ListenAndServe(addr, nil))

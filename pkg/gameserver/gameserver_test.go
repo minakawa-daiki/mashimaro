@@ -52,7 +52,7 @@ func checkAyame(t *testing.T) {
 func newInternalBrokerClient(t *testing.T, sstore gamesession.Store, mstore gamemetadata.Store) proto.BrokerClient {
 	lis := testutils.ListenTCPWithRandomPort(t)
 	s := grpc.NewServer()
-	proto.RegisterBrokerServer(s, broker.NewInternalServer(sstore, mstore))
+	proto.RegisterBrokerServer(s, broker.NewInternalBroker(sstore, mstore))
 	go s.Serve(lis)
 	cc, err := grpc.Dial(lis.Addr().String(), grpc.WithInsecure())
 	if err != nil {
@@ -167,8 +167,8 @@ func TestGameServerLifecycle(t *testing.T) {
 		Command: "wine notepad",
 	}
 	sstore := gamesession.NewInMemoryStore()
-	mstore := gamemetadata.NewInMemoryMetadataStore()
-	err := mstore.AddGameMetadata(ctx, gameMetadata.GameID, gameMetadata)
+	mstore := gamemetadata.NewInMemoryStore()
+	err := mstore.AddGameMetadata(ctx, gameMetadata)
 	assert.NoError(t, err)
 	brokerClient := newInternalBrokerClient(t, sstore, mstore)
 	gameProcessClient := newGameProcessClient(t)
@@ -226,67 +226,3 @@ func TestGameServerLifecycle(t *testing.T) {
 	_, err = sstore.GetSession(ctx, ss.SessionID)
 	assert.True(t, errors.Is(err, gamesession.ErrSessionNotFound))
 }
-
-/*
-func TestVideoOnBrowser(t *testing.T) {
-	t.Skip("comment out this line if you want test video quality on browser(chromedriver required in your PATH)")
-	checkAyame(t)
-
-	ctx := context.Background()
-	gameServer := &AllocatedServer{
-		ID:   "test-gs",
-	}
-	gameMetadata := &gamemetadata.Metadata{
-		GameID:  "notepad",
-		Command: "wine notepad",
-	}
-	sstore := gamesession.NewInMemoryStore()
-	mstore := gamemetadata.NewInMemoryMetadataStore()
-	err := mstore.AddGameMetadata(ctx, gameMetadata.GameID, gameMetadata)
-	assert.NoError(t, err)
-	bc := newInternalBrokerClient(t, sstore, mstore)
-	gwc := newGameProcessClient(t)
-	signaler := NewAyameSignaler(ayameURL)
-
-	display := os.Getenv("DISPLAY")
-	ss, err := sstore.NewSession(ctx, &gamesession.NewSessionRequest{
-		GameID:     gameMetadata.GameID,
-		GameServer: gameServer,
-	})
-	assert.NoError(t, err)
-	agent := NewGameServer(bc, gwc, signaler)
-	agentExited := make(chan struct{})
-	agent.OnShutdown(func() {
-		close(agentExited)
-	})
-	log.Printf("%s", ss.SessionID)
-
-	driver := agouti.ChromeDriver(agouti.ChromeOptions("args", []string{"--no-sandbox"}))
-	assert.NoError(t, driver.Start())
-	t.Cleanup(func() {
-		_ = driver.Stop()
-	})
-
-	page, err := driver.NewPage()
-	assert.NoError(t, err)
-	wd, err := os.Getwd()
-	assert.NoError(t, err)
-	assert.NoError(t, page.Navigate(fmt.Sprintf("file://%s/test.html", wd)))
-	var result string
-	assert.NoError(t, page.RunScript(fmt.Sprintf("startConn('%s')", ss.SessionID), map[string]interface{}{}, &result))
-	assert.NoError(t, page.Click(agouti.SingleClick, agouti.LeftButton)) // to avoid "play() failed because the user didn't interact with the document first"
-
-	videoConfig := &streamer.VideoConfig{
-		CaptureDisplay: display,
-		CaptureArea:    streamer.ScreenCaptureArea{},
-		X264Param:      "",
-	}
-	audioConfig := &streamer.AudioConfig{PulseServer: "localhost:4713"}
-	go func() {
-		if err := agent.Serve(ctx, gameServer.ID, videoConfig, audioConfig); err != nil {
-			log.Printf("failed to run game agent: %+v", err)
-		}
-	}()
-	select {}
-}
-*/

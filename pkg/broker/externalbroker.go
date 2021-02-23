@@ -14,21 +14,21 @@ import (
 	"github.com/go-chi/chi"
 )
 
-type ExternalServer struct {
+type ExternalBroker struct {
 	sessionStore  gamesession.Store
 	metadataStore gamemetadata.Store
 	allocator     allocator.Allocator
 }
 
-func NewExternalServer(sessionStore gamesession.Store, metadataStore gamemetadata.Store, alloc allocator.Allocator) *ExternalServer {
-	return &ExternalServer{sessionStore: sessionStore, metadataStore: metadataStore, allocator: alloc}
+func NewExternalBroker(sessionStore gamesession.Store, metadataStore gamemetadata.Store, alloc allocator.Allocator) *ExternalBroker {
+	return &ExternalBroker{sessionStore: sessionStore, metadataStore: metadataStore, allocator: alloc}
 }
 
 type newGameResponse struct {
 	SessionID gamesession.SessionID `json:"sessionId"`
 }
 
-func (s *ExternalServer) newGame(ctx context.Context, gameID string) (*gamesession.Session, error) {
+func (s *ExternalBroker) newGame(ctx context.Context, gameID string) (*gamesession.Session, error) {
 	metadata, err := s.metadataStore.GetGameMetadata(ctx, gameID)
 	if err != nil {
 		return nil, err
@@ -48,7 +48,7 @@ func (s *ExternalServer) newGame(ctx context.Context, gameID string) (*gamesessi
 	return ss, nil
 }
 
-func (s *ExternalServer) Handler() http.Handler {
+func (s *ExternalBroker) HTTPHandler() http.Handler {
 	r := chi.NewRouter()
 	r.Post("/newgame/{gameID}", func(w http.ResponseWriter, req *http.Request) {
 		w.Header().Set("Access-Control-Allow-Headers", "*")
