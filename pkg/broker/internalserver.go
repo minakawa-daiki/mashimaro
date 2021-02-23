@@ -2,6 +2,7 @@ package broker
 
 import (
 	"context"
+	"log"
 	"time"
 
 	"github.com/pkg/errors"
@@ -38,6 +39,7 @@ func (s *internalServer) WatchSession(req *proto.WatchSessionRequest, stream pro
 		case <-stream.Context().Done():
 			return nil
 		case <-ticker.C:
+			log.Printf("watch session for allocated server(%s)", req.AllocatedServerId)
 			ss, err := s.sessionStore.GetSessionByAllocatedServerID(stream.Context(), req.AllocatedServerId)
 			if err == gamesession.ErrSessionNotFound {
 				if found {
@@ -54,16 +56,19 @@ func (s *internalServer) WatchSession(req *proto.WatchSessionRequest, stream pro
 			if err != nil {
 				return err
 			}
-			found = true
-			if err := stream.Send(&proto.WatchSessionResponse{
-				Found: found,
-				Session: &proto.Session{
-					SessionId:         string(ss.SessionID),
-					AllocatedServerId: ss.AllocatedServerID,
-					GameId:            ss.GameID,
-				},
-			}); err != nil {
-				return err
+			if !found {
+				found = true
+				log.Printf("found gamesession for allocated server: %s", req.AllocatedServerId)
+				if err := stream.Send(&proto.WatchSessionResponse{
+					Found: found,
+					Session: &proto.Session{
+						SessionId:         string(ss.SessionID),
+						AllocatedServerId: ss.AllocatedServerID,
+						GameId:            ss.GameID,
+					},
+				}); err != nil {
+					return err
+				}
 			}
 		}
 	}

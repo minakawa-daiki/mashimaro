@@ -32,7 +32,10 @@ func TestStreamingServer(t *testing.T) {
 		assert.NoError(t, err)
 		c := proto.NewStreamerClient(cc)
 		ctx := context.Background()
-		resp, err := c.StartVideoStreaming(ctx, &proto.StartVideoStreamingRequest{GstPipeline: "videotestsrc"})
+		resp, err := c.StartVideoStreaming(ctx, &proto.StartVideoStreamingRequest{
+			GstPipeline: "videotestsrc",
+			Port:        0,
+		})
 		assert.NoError(t, err)
 		conn, err := net.Dial("tcp", fmt.Sprintf("127.0.0.1:%d", resp.ListenPort))
 		assert.NoError(t, err)

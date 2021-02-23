@@ -106,7 +106,8 @@ func NewPulseAudioCapturer(pulseServer string) *PulseAudioCapturer {
 }
 
 func (c *PulseAudioCapturer) CompileGstPipeline() (string, error) {
-	return fmt.Sprintf("pulsesrc server=%s provide-clock=1 do-timestamp=1", c.PulseServer), nil
+	// TODO: `provide-clock=1` causes stuttering, but the reason is still unknown to me. For now, I set it to 0 and it works fine.
+	return fmt.Sprintf("pulsesrc server=%s provide-clock=0", c.PulseServer), nil
 }
 
 type OpusEncoder struct {

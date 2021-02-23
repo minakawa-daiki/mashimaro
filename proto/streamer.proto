@@ -9,6 +9,9 @@ service Streamer {
 
 message StartVideoStreamingRequest {
   string gst_pipeline = 1;
+
+  // Use 0 to allocate random port
+  int32 port = 2;
 }
 
 message StartVideoStreamingResponse {
@@ -17,6 +20,9 @@ message StartVideoStreamingResponse {
 
 message StartAudioStreamingRequest {
   string gst_pipeline = 1;
+
+  // Use 0 to allocate random port
+  int32 port = 2;
 }
 
 message StartAudioStreamingResponse {
