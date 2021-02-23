@@ -41,7 +41,7 @@ var drivers = map[string]func() *agouti.WebDriver{
 		height := 240
 		return agouti.ChromeDriver(
 			agouti.ChromeOptions("args", []string{
-				// "--headless",
+				"--headless",
 				"--disable-gpu",
 				"--no-sandbox",
 				fmt.Sprintf("--window-size=%d,%d", width, height),
@@ -55,7 +55,7 @@ var drivers = map[string]func() *agouti.WebDriver{
 	},
 }
 
-func TestAudio(t *testing.T) {
+func TestWebRTCConnection(t *testing.T) {
 	for name, d := range drivers {
 		driver := d()
 		t.Run(name, func(t *testing.T) {
@@ -74,9 +74,9 @@ func TestAudio(t *testing.T) {
 				t.Fatalf("Failed to set wait: %v", err)
 			}
 
-			chSDP := make(chan *webrtc.SessionDescription)
-			chStarted := make(chan struct{})
-			go logParseLoop(context.Background(), t, page, chStarted, chSDP)
+			sdpCh := make(chan *webrtc.SessionDescription)
+			connected := make(chan struct{})
+			go logParseLoop(context.Background(), t, page, connected, sdpCh)
 
 			pwd, errPwd := os.Getwd()
 			if errPwd != nil {
@@ -88,7 +88,7 @@ func TestAudio(t *testing.T) {
 				t.Fatalf("Failed to navigate: %v", err)
 			}
 
-			sdp := <-chSDP
+			sdp := <-sdpCh
 			pc, answer, track, errTrack := createTrack(*sdp)
 			if errTrack != nil {
 				t.Fatalf("Failed to create track: %v", errTrack)
@@ -113,7 +113,7 @@ func TestAudio(t *testing.T) {
 
 			ctx := context.Background()
 			go startPushPulseAudioFromStreamer(ctx, t, track, streamerServer)
-			select {}
+			<-connected
 		})
 	}
 }
@@ -179,7 +179,7 @@ func startPushPulseAudioFromStreamer(ctx context.Context, t *testing.T, track *w
 	}
 }
 
-func logParseLoop(ctx context.Context, t *testing.T, page *agouti.Page, chStarted chan struct{}, chSDP chan *webrtc.SessionDescription) {
+func logParseLoop(ctx context.Context, t *testing.T, page *agouti.Page, connectedCh chan struct{}, sdpCh chan *webrtc.SessionDescription) {
 	for {
 		select {
 		case <-time.After(time.Second):
@@ -201,7 +201,7 @@ func logParseLoop(ctx context.Context, t *testing.T, page *agouti.Page, chStarte
 			case "connection":
 				switch v {
 				case "connected":
-					close(chStarted)
+					close(connectedCh)
 				case "failed":
 					t.Error("Browser reported connection failed")
 					return
@@ -212,7 +212,7 @@ func logParseLoop(ctx context.Context, t *testing.T, page *agouti.Page, chStarte
 					t.Errorf("Failed to unmarshal SDP: %v", err)
 					return
 				}
-				chSDP <- sdp
+				sdpCh <- sdp
 			case "stats":
 				// TODO: stats
 			default:
