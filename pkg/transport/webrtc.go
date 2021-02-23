@@ -82,8 +82,17 @@ func NewWebRTCConn(cid string, pc *webrtc.PeerConnection) (*WebRTCConn, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create data channel")
 	}
+	pc.OnConnectionStateChange(func(state webrtc.PeerConnectionState) {
+		log.Printf("[%s] connection state has changed: %s", conn.cid, state)
+	})
+	pc.OnICEGatheringStateChange(func(state webrtc.ICEGathererState) {
+		log.Printf("[%s] ICE gathering state has changed: %s", conn.cid, state)
+	})
+	pc.OnSignalingStateChange(func(state webrtc.SignalingState) {
+		log.Printf("[%s] signaling state has changed: %s", conn.cid, state)
+	})
 	pc.OnICEConnectionStateChange(func(state webrtc.ICEConnectionState) {
-		log.Printf("[%s] state has changed: %s", conn.cid, state)
+		log.Printf("[%s] ICE connection state has changed: %s", conn.cid, state)
 		switch state {
 		case webrtc.ICEConnectionStateChecking:
 			weOffer := pc.RemoteDescription().Type == webrtc.SDPTypeAnswer
