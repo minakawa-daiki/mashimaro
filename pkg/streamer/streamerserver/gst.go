@@ -16,8 +16,8 @@ import (
 	"github.com/pkg/errors"
 )
 
-func StartGstServerWithRandomPort(pipelineStr string) (*GstServer, error) {
-	lis, err := listenTCPWithRandomPort()
+func StartGstServer(pipelineStr string, port int) (*GstServer, error) {
+	lis, err := listenTCP(port)
 	if err != nil {
 		return nil, err
 	}
@@ -173,8 +173,8 @@ func (g *GstServer) Stop() {
 	}
 }
 
-func listenTCPWithRandomPort() (*net.TCPListener, error) {
-	addr, err := net.ResolveTCPAddr("tcp", ":0")
+func listenTCP(port int) (*net.TCPListener, error) {
+	addr, err := net.ResolveTCPAddr("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
 		return nil, err
 	}

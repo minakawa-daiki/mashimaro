@@ -72,6 +72,10 @@ services:
     volumes:
       - x11socket:/tmp/.X11-unix/
       - appconfig:/var/run/appconfig
+    ports:
+      - 54713:4713 # pulseaudio for e2e audio testing
+      - 50502:50502 # gRPC server for e2e testing
+      - 50601:50601 # audio server for e2e audio testing
     restart: always
     ipc: host
   pulseaudio:

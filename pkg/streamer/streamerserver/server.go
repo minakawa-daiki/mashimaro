@@ -21,7 +21,7 @@ func NewStreamerServer() proto.StreamerServer {
 
 func (s *streamerServer) StartVideoStreaming(ctx context.Context, req *proto.StartVideoStreamingRequest) (*proto.StartVideoStreamingResponse, error) {
 	s.stopVideoStreaming()
-	if err := s.startVideoStreaming(req.GstPipeline); err != nil {
+	if err := s.startVideoStreaming(req.GstPipeline, int(req.Port)); err != nil {
 		return nil, err
 	}
 	s.videoMu.Lock()
@@ -32,7 +32,7 @@ func (s *streamerServer) StartVideoStreaming(ctx context.Context, req *proto.Sta
 
 func (s *streamerServer) StartAudioStreaming(ctx context.Context, req *proto.StartAudioStreamingRequest) (*proto.StartAudioStreamingResponse, error) {
 	s.stopAudioStreaming()
-	if err := s.startAudioStreaming(req.GstPipeline); err != nil {
+	if err := s.startAudioStreaming(req.GstPipeline, int(req.Port)); err != nil {
 		return nil, err
 	}
 	s.audioMu.Lock()
@@ -41,8 +41,8 @@ func (s *streamerServer) StartAudioStreaming(ctx context.Context, req *proto.Sta
 	return &proto.StartAudioStreamingResponse{ListenPort: uint32(addr.Port)}, nil
 }
 
-func (s *streamerServer) startVideoStreaming(pipelineStr string) error {
-	gs, err := StartGstServerWithRandomPort(pipelineStr)
+func (s *streamerServer) startVideoStreaming(pipelineStr string, port int) error {
+	gs, err := StartGstServer(pipelineStr, port)
 	if err != nil {
 		return err
 	}
@@ -60,8 +60,8 @@ func (s *streamerServer) stopVideoStreaming() {
 	}
 }
 
-func (s *streamerServer) startAudioStreaming(pipelineStr string) error {
-	gs, err := StartGstServerWithRandomPort(pipelineStr)
+func (s *streamerServer) startAudioStreaming(pipelineStr string, port int) error {
+	gs, err := StartGstServer(pipelineStr, port)
 	if err != nil {
 		return err
 	}

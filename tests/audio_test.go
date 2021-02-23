@@ -1,14 +1,22 @@
 package tests
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
 	"os"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/castaneai/mashimaro/pkg/streamer/streamerproto"
+
+	"github.com/castaneai/mashimaro/pkg/proto"
+	"github.com/castaneai/mashimaro/pkg/streamer"
+	"google.golang.org/grpc"
 
 	"github.com/stretchr/testify/assert"
 
@@ -21,7 +29,9 @@ import (
 )
 
 const (
-	testOggFile = "example.ogg"
+	testOggFile       = "example.ogg"
+	streamerServer    = "localhost:50502"
+	streamerAudioPort = 50601 // see docker-compose.yml
 )
 
 var drivers = map[string]func() *agouti.WebDriver{
@@ -100,14 +110,15 @@ func TestAudio(t *testing.T) {
 			}
 			assert.NoError(t, page.Click(agouti.SingleClick, agouti.LeftButton)) // to avoid "play() failed because the user didn't interact with the document first"
 
-			go startPushOggFile(t, track, testOggFile)
+			ctx := context.Background()
+			go startPushPulseAudioFromStreamer(ctx, t, track, streamerServer)
 			select {}
 		})
 	}
 }
 
 func startPushOggFile(t *testing.T, track *webrtc.TrackLocalStaticSample, oggFile string) {
-	p, err := gst.ParseLaunch(fmt.Sprintf("multifilesrc location=%s ! oggdemux ! vorbisdec ! audioconvert ! audioresample ! opusenc ! appsink name=out", oggFile))
+	p, err := gst.ParseLaunch(fmt.Sprintf("filesrc location=%s ! oggdemux ! vorbisdec ! audioconvert ! audioresample ! opusenc ! appsink name=out", oggFile))
 	if err != nil {
 		panic(fmt.Errorf("failed to parse pipeline: %+v", err))
 	}
@@ -124,6 +135,45 @@ func startPushOggFile(t *testing.T, track *webrtc.TrackLocalStaticSample, oggFil
 			Duration: time.Duration(sample.Duration),
 		}); err != nil {
 			panic(fmt.Errorf("failed to write sample to track: %+v", err))
+		}
+	}
+}
+
+func startPushPulseAudioFromStreamer(ctx context.Context, t *testing.T, track *webrtc.TrackLocalStaticSample, streamerAddr string) {
+	pulse := streamer.NewPulseAudioCapturer("localhost:4713")
+	p := streamer.NewOpusEncoder(pulse)
+	gstPipeline, err := p.CompileGstPipeline()
+	if err != nil {
+		panic(fmt.Errorf("failed to complie gst pipeline: %+v", err))
+	}
+	cc, err := grpc.Dial(streamerAddr, grpc.WithInsecure())
+	if err != nil {
+		panic(fmt.Errorf("failed to dial to streamer: %+v", err))
+	}
+	sc := proto.NewStreamerClient(cc)
+	resp, err := sc.StartAudioStreaming(ctx, &proto.StartAudioStreamingRequest{
+		GstPipeline: gstPipeline,
+		Port:        streamerAudioPort,
+	})
+	if err != nil {
+		panic(fmt.Errorf("failed to start audio streaming: %+v", err))
+	}
+	audioAddr := fmt.Sprintf("%s:%d", strings.Split(streamerAddr, ":")[0], resp.ListenPort)
+	conn, err := net.Dial("tcp", audioAddr)
+	if err != nil {
+		panic(fmt.Errorf("failed to dial to audio streamer: %+v", err))
+	}
+	r := bufio.NewReader(conn)
+	for {
+		var sp streamerproto.SamplePacket
+		if err := streamerproto.ReadSamplePacket(r, &sp); err != nil {
+			panic(fmt.Errorf("failed to read sample packet: %+v", err))
+		}
+		if err := track.WriteSample(media.Sample{
+			Data:     sp.Data,
+			Duration: sp.Duration,
+		}); err != nil {
+			panic(fmt.Errorf("failed to write sample: %+v", err))
 		}
 	}
 }
