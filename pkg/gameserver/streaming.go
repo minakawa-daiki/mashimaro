@@ -59,7 +59,10 @@ func (s *GameServer) startVideoStreaming(ctx context.Context, conn transport.Str
 	if err != nil {
 		return err
 	}
-	resp, err := s.streamer.StartVideoStreaming(ctx, &proto.StartVideoStreamingRequest{GstPipeline: gstPipeline})
+	resp, err := s.streamer.StartVideoStreaming(ctx, &proto.StartVideoStreamingRequest{
+		GstPipeline: gstPipeline,
+		Port:        0, // random port allocation
+	})
 	if err != nil {
 		return err
 	}

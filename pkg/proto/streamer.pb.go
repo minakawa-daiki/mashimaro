@@ -19,7 +19,8 @@ var _ = math.Inf
 
 type StartVideoStreamingRequest struct {
 	GstPipeline string `protobuf:"bytes,1,opt,name=gst_pipeline,json=gstPipeline" json:"gst_pipeline,omitempty"`
-	Port        int32  `protobuf:"varint,2,opt,name=port" json:"port,omitempty"`
+	// Use 0 to allocate random port
+	Port int32 `protobuf:"varint,2,opt,name=port" json:"port,omitempty"`
 }
 
 func (m *StartVideoStreamingRequest) Reset()                    { *m = StartVideoStreamingRequest{} }
@@ -59,7 +60,8 @@ func (m *StartVideoStreamingResponse) GetListenPort() uint32 {
 
 type StartAudioStreamingRequest struct {
 	GstPipeline string `protobuf:"bytes,1,opt,name=gst_pipeline,json=gstPipeline" json:"gst_pipeline,omitempty"`
-	Port        int32  `protobuf:"varint,2,opt,name=port" json:"port,omitempty"`
+	// Use 0 to allocate random port
+	Port int32 `protobuf:"varint,2,opt,name=port" json:"port,omitempty"`
 }
 
 func (m *StartAudioStreamingRequest) Reset()                    { *m = StartAudioStreamingRequest{} }
