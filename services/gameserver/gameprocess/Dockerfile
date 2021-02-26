@@ -20,10 +20,11 @@ RUN wget http://winetricks.org/winetricks \
 	&& chmod +x winetricks \
 	&& mv winetricks /usr/bin/winetricks \
 	&& winetricks wenquanyi
-RUN apt install -y locales \
+RUN apt install -y locales tzdata \
 	&& locale-gen ja_JP.UTF-8
 ENV WINEDLLOVERRIDES "mscoree=d;mshtml=d"
 ENV LANG ja_JP.UTF-8
+ENV TZ Asia/Tokyo
 COPY ./services/gameserver/gameprocess/entrypoint.sh /entrypoint.sh
 COPY --from=builder /bin/gameprocess /bin/gameprocess
 ENTRYPOINT ["/entrypoint.sh", "/bin/gameprocess"]
