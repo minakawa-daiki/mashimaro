@@ -1,5 +1,6 @@
 /tests
 /games
+!/games/metadata-seed.yaml
 /client
 /proto
 README.md
