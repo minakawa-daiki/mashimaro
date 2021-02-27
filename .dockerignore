@@ -1,10 +1,11 @@
 /tests
+/e2e
 /games
 !/games/metadata-seed.yaml
 /client
 /proto
 README.md
 LICENSE
-*.svg
 /skaffold.yaml
+/kustomization.yaml
 /docker-compose.yml
