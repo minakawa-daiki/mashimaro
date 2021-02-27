@@ -80,7 +80,7 @@ func (s *GameServer) newVideoEncoderConn(ctx context.Context, conn transport.Str
 func (s *GameServer) startAudioStreaming(ctx context.Context, conn transport.StreamerConn) error {
 	log.Printf("start audio streaming")
 	audio := NewOpusEncoder(
-		NewPulseAudioCapturer(os.Getenv("PULSE_ADDR")),
+		NewPulseAudioCapturer(os.Getenv("PULSE_SERVER")),
 	)
 	gstPipeline, err := audio.CompileGstPipeline()
 	if err != nil {

@@ -3,15 +3,11 @@ package gameserver
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"log"
-	"net"
-	"net/url"
+	"os"
 	"sync"
 	"testing"
 	"time"
-
-	"github.com/castaneai/mashimaro/pkg/encoder"
 
 	"github.com/castaneai/mashimaro/pkg/allocator"
 
@@ -35,20 +31,6 @@ import (
 	"google.golang.org/grpc"
 )
 
-const (
-	ayameURL = "ws://localhost:3000/signaling"
-)
-
-func checkAyame(t *testing.T) {
-	u, err := url.Parse(ayameURL)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := net.DialTimeout("tcp", u.Host, 100*time.Millisecond); err != nil {
-		t.Skip(fmt.Sprintf("A Test was skipped. Make sure that Ayame is running on %s", ayameURL))
-	}
-}
-
 func newTestInternalBrokerClient(t *testing.T, sstore gamesession.Store, mstore gamemetadata.Store) proto.BrokerClient {
 	lis := testutils.ListenTCPWithRandomPort(t)
 	s := grpc.NewServer()
@@ -71,18 +53,6 @@ func newTestGameProcessClient(t *testing.T) proto.GameProcessClient {
 		t.Fatalf("failed to dial to game process: %+v", err)
 	}
 	return proto.NewGameProcessClient(cc)
-}
-
-func newTestEncoderClient(t *testing.T) proto.EncoderClient {
-	lis := testutils.ListenTCPWithRandomPort(t)
-	s := grpc.NewServer()
-	proto.RegisterEncoderServer(s, encoder.NewEncoderServer())
-	go s.Serve(lis)
-	cc, err := grpc.Dial(lis.Addr().String(), grpc.WithInsecure())
-	if err != nil {
-		t.Fatalf("failed to dial to game process: %+v", err)
-	}
-	return proto.NewEncoderClient(cc)
 }
 
 func sendMoveMessage(t *testing.T, conn transport.PlayerConn, msg *MoveMessage) {
@@ -156,7 +126,14 @@ func sendExitGameMessage(t *testing.T, conn transport.PlayerConn) {
 }
 
 func TestGameServerLifecycle(t *testing.T) {
-	checkAyame(t)
+	ayameURL := os.Getenv("AYAME_URL")
+	if ayameURL == "" {
+		t.Skip("Set AYAME_URL to run this test")
+	}
+	encoderAddr := os.Getenv("ENCODER_ADDR")
+	if encoderAddr == "" {
+		t.Skip("Set ENCODER_ADDR to run this test")
+	}
 
 	ctx := context.Background()
 	allocatedServer := &allocator.AllocatedServer{
@@ -172,7 +149,11 @@ func TestGameServerLifecycle(t *testing.T) {
 	assert.NoError(t, err)
 	brokerClient := newTestInternalBrokerClient(t, sstore, mstore)
 	gameProcessClient := newTestGameProcessClient(t)
-	encoderClient := newTestEncoderClient(t)
+	encoderCC, err := grpc.Dial(encoderAddr, grpc.WithInsecure())
+	if err != nil {
+		t.Fatal(err)
+	}
+	encoderClient := proto.NewEncoderClient(encoderCC)
 	signaler := transport.NewAyameSignaler(ayameURL)
 	ss, err := sstore.NewSession(ctx, &gamesession.NewSessionRequest{
 		GameID:            gameMetadata.GameID,
@@ -186,6 +167,9 @@ func TestGameServerLifecycle(t *testing.T) {
 	})
 	go func() {
 		if err := gameServer.Serve(ctx); err != nil {
+			if errors.Is(err, errGameExited) {
+				return
+			}
 			log.Printf("failed to run game server: %+v", err)
 		}
 	}()
@@ -211,7 +195,7 @@ func TestGameServerLifecycle(t *testing.T) {
 	assert.NoError(t, err)
 	<-connected
 	// waiting for game process ready
-	time.Sleep(1 * time.Second)
+	time.Sleep(3 * time.Second)
 
 	for i := 0; i < 10; i++ {
 		sendMoveMessage(t, conn, &MoveMessage{X: i * 10, Y: i * 10})

@@ -43,7 +43,7 @@ spec:
                   value: internalbroker.mashimaro.svc.cluster.local.:50501
                 - name: GAME_PROCESS_ADDR
                   value: localhost:50501
-                - name: PULSE_ADDR
+                - name: PULSE_SERVER
                   value: localhost:4713
                 - name: DISPLAY
                   value: ":0"

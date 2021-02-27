@@ -56,6 +56,9 @@ func (s *GameServer) handleControllerMessage(ctx context.Context, data []byte, c
 	}
 	switch msg.Type {
 	case MessageTypeMove:
+		if captureRect == nil {
+			return nil
+		}
 		var body MoveMessage
 		if err := json.Unmarshal(msg.Body, &body); err != nil {
 			return err
