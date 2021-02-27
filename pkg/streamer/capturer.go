@@ -62,7 +62,7 @@ func (a *ScreenCaptureArea) Height() int {
 
 func (a *ScreenCaptureArea) IsValid() bool {
 	return (a.StartX >= 0 && a.StartY >= 0 && a.EndX >= 0 && a.EndY >= 0) &&
-		a.Width() > 0 && a.Height() > 0
+		a.Width() >= 16 && a.Height() >= 16 // x264enc's min width/height is 16 https://gstreamer.freedesktop.org/documentation/x264/index.html?gi-language=c#sink
 }
 
 func (a *ScreenCaptureArea) FixForH264() {

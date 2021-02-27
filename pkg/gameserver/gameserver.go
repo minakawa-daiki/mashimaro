@@ -82,6 +82,8 @@ func (s *GameServer) Serve(ctx context.Context) error {
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
+	case err := <-errCh:
+		return fmt.Errorf("error occured while waiting for new session: %+v", err)
 	case session = <-sessionCreated:
 	}
 	defer func() {
@@ -121,6 +123,8 @@ func (s *GameServer) Serve(ctx context.Context) error {
 
 	log.Printf("waiting for connection...")
 	select {
+	case err := <-errCh:
+		return fmt.Errorf("error occured while waiting for connection established: %+v", err)
 	case <-connected:
 	case <-time.After(connectTimeout):
 		return fmt.Errorf("connection timed out")
