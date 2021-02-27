@@ -2,6 +2,7 @@ package streamerserver
 
 import (
 	"context"
+	"log"
 	"net"
 	"sync"
 
@@ -9,72 +10,44 @@ import (
 )
 
 type streamerServer struct {
-	videoServer *GstServer
-	videoMu     sync.Mutex
-	audioServer *GstServer
-	audioMu     sync.Mutex
+	gstServers   map[string]*GstServer
+	gstServersMu sync.Mutex
 }
 
 func NewStreamerServer() proto.StreamerServer {
-	return &streamerServer{}
+	return &streamerServer{
+		gstServers: map[string]*GstServer{},
+	}
 }
 
-func (s *streamerServer) StartVideoStreaming(ctx context.Context, req *proto.StartVideoStreamingRequest) (*proto.StartVideoStreamingResponse, error) {
-	s.stopVideoStreaming()
-	if err := s.startVideoStreaming(req.GstPipeline, int(req.Port)); err != nil {
+func (s *streamerServer) StartStreaming(ctx context.Context, req *proto.StartStreamingRequest) (*proto.StartStreamingResponse, error) {
+	s.stopStreaming(req.MediaId)
+	addr, err := s.startGstStreaming(req.MediaId, req.GstPipeline, int(req.Port))
+	if err != nil {
 		return nil, err
 	}
-	s.videoMu.Lock()
-	defer s.videoMu.Unlock()
-	addr := s.videoServer.Addr().(*net.TCPAddr)
-	return &proto.StartVideoStreamingResponse{ListenPort: uint32(addr.Port)}, nil
+	return &proto.StartStreamingResponse{ListenPort: uint32(addr.Port)}, nil
 }
 
-func (s *streamerServer) StartAudioStreaming(ctx context.Context, req *proto.StartAudioStreamingRequest) (*proto.StartAudioStreamingResponse, error) {
-	s.stopAudioStreaming()
-	if err := s.startAudioStreaming(req.GstPipeline, int(req.Port)); err != nil {
+func (s *streamerServer) startGstStreaming(mediaID, pipelineStr string, port int) (*net.TCPAddr, error) {
+	gs, err := StartGstServer(pipelineStr, port)
+	if err != nil {
 		return nil, err
 	}
-	s.audioMu.Lock()
-	defer s.audioMu.Unlock()
-	addr := s.audioServer.Addr().(*net.TCPAddr)
-	return &proto.StartAudioStreamingResponse{ListenPort: uint32(addr.Port)}, nil
+	s.gstServersMu.Lock()
+	defer s.gstServersMu.Unlock()
+	s.gstServers[mediaID] = gs
+	log.Printf("gst pipeline started (mediaID: %s, %s)", mediaID, pipelineStr)
+	return gs.Addr().(*net.TCPAddr), nil
 }
 
-func (s *streamerServer) startVideoStreaming(pipelineStr string, port int) error {
-	gs, err := StartGstServer(pipelineStr, port)
-	if err != nil {
-		return err
-	}
-	s.videoMu.Lock()
-	defer s.videoMu.Unlock()
-	s.videoServer = gs
-	return nil
-}
-
-func (s *streamerServer) stopVideoStreaming() {
-	s.videoMu.Lock()
-	defer s.videoMu.Unlock()
-	if s.videoServer != nil {
-		s.videoServer.Stop()
-	}
-}
-
-func (s *streamerServer) startAudioStreaming(pipelineStr string, port int) error {
-	gs, err := StartGstServer(pipelineStr, port)
-	if err != nil {
-		return err
-	}
-	s.audioMu.Lock()
-	defer s.audioMu.Unlock()
-	s.audioServer = gs
-	return nil
-}
-
-func (s *streamerServer) stopAudioStreaming() {
-	s.audioMu.Lock()
-	defer s.audioMu.Unlock()
-	if s.audioServer != nil {
-		s.audioServer.Stop()
+func (s *streamerServer) stopStreaming(mediaID string) {
+	s.gstServersMu.Lock()
+	defer s.gstServersMu.Unlock()
+	gs, ok := s.gstServers[mediaID]
+	if ok {
+		gs.Stop()
+		delete(s.gstServers, mediaID)
+		log.Printf("gst pipeline stopped (mediaID: %s, gst: %v)", mediaID, gs)
 	}
 }

@@ -32,7 +32,8 @@ func TestStreamingServer(t *testing.T) {
 		assert.NoError(t, err)
 		c := proto.NewStreamerClient(cc)
 		ctx := context.Background()
-		resp, err := c.StartVideoStreaming(ctx, &proto.StartVideoStreamingRequest{
+		resp, err := c.StartStreaming(ctx, &proto.StartStreamingRequest{
+			MediaId:     "video",
 			GstPipeline: "videotestsrc",
 			Port:        0,
 		})

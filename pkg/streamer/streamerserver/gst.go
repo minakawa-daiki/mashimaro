@@ -32,16 +32,23 @@ func StartGstServer(pipelineStr string, port int) (*GstServer, error) {
 }
 
 type GstServer struct {
-	lis      net.Listener
-	pipeline *gst.Pipeline
-	conn     net.Conn
-	mu       sync.Mutex
+	lis         net.Listener
+	pipelineStr string
+	pipeline    *gst.Pipeline
+	conn        net.Conn
+	mu          sync.Mutex
 }
 
 func newGstServer(lis net.Listener) *GstServer {
 	return &GstServer{
 		lis: lis,
 	}
+}
+
+func (g *GstServer) String() string {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	return fmt.Sprintf("%T(pipeline: %s)", g, g.pipelineStr)
 }
 
 func (g *GstServer) Addr() net.Addr {
@@ -54,10 +61,11 @@ func (g *GstServer) Serve(pipelineStr string) error {
 	pipelineStr += " ! appsink name=out"
 	pipeline, err := gst.ParseLaunch(pipelineStr)
 	if err != nil {
-		return errors.Wrap(err, "failed to parse pipeline str")
+		return errors.Wrapf(err, "failed to parse pipeline str: %s", pipelineStr)
 	}
 	src := pipeline.GetByName("out")
 	g.mu.Lock()
+	g.pipelineStr = pipelineStr
 	g.pipeline = pipeline
 	lis := g.lis
 	g.mu.Unlock()
@@ -110,7 +118,7 @@ func (g *GstServer) serveSample(w io.Writer, src *gst.Element) error {
 		}
 		if err := streamerproto.WriteSamplePacket(w, &packet); err != nil {
 			if errors.Is(err, syscall.EPIPE) || errors.Is(err, syscall.ECONNRESET) {
-				log.Printf("streaming client disconnected")
+				log.Printf("media data client disconnected")
 				return nil
 			}
 			return errors.Wrap(err, "failed to write sample packet")
@@ -136,7 +144,7 @@ func (g *GstServer) startPipeline() error {
 
 	}()
 	if err := g.setPipelineStateLocked(gst.StatePlaying); err != nil {
-		return fmt.Errorf("failed to stop pipeline: %+v", err)
+		return fmt.Errorf("failed to stop pipeline: %+v (%s)", err, g.pipelineStr)
 	}
 	return nil
 }
@@ -148,10 +156,10 @@ func (g *GstServer) stopPipeline() {
 		return
 	}
 	if err := g.setPipelineStateLocked(gst.StateNull); err != nil {
-		log.Printf("failed to stop pipeline: %+v", err)
+		log.Printf("failed to stop pipeline: %+v (%s)", err, g.pipelineStr)
 	}
 	g.pipeline = nil
-	log.Printf("pipeline stopped")
+	log.Printf("pipeline stopped: %s", g.pipelineStr)
 }
 
 func (g *GstServer) Stop() {
@@ -163,13 +171,14 @@ func (g *GstServer) Stop() {
 		g.conn = nil
 	}
 	if g.lis != nil {
+		addr := g.lis.Addr()
 		if err := g.lis.Close(); err != nil {
 			if !strings.Contains(err.Error(), "use of closed network connection") {
 				log.Printf("failed to close listener: %+v", err)
 			}
 		}
 		g.lis = nil
-		log.Printf("listener was closed")
+		log.Printf("media data connection listener was closed: %v", addr)
 	}
 }
 

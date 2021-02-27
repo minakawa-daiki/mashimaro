@@ -22,10 +22,8 @@ It has these top-level messages:
 	StartGameResponse
 	ExitGameRequest
 	ExitGameResponse
-	StartVideoStreamingRequest
-	StartVideoStreamingResponse
-	StartAudioStreamingRequest
-	StartAudioStreamingResponse
+	StartStreamingRequest
+	StartStreamingResponse
 */
 package proto
 

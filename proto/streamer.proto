@@ -3,28 +3,17 @@ syntax = "proto3";
 option go_package = "proto";
 
 service Streamer {
-  rpc StartVideoStreaming(StartVideoStreamingRequest) returns (StartVideoStreamingResponse) {}
-  rpc StartAudioStreaming(StartAudioStreamingRequest) returns (StartAudioStreamingResponse) {}
+  rpc StartStreaming(StartStreamingRequest) returns (StartStreamingResponse) {}
 }
 
-message StartVideoStreamingRequest {
-  string gst_pipeline = 1;
+message StartStreamingRequest {
+  string media_id = 1;
+  string gst_pipeline = 2;
 
   // Use 0 to allocate random port
-  int32 port = 2;
+  int32 port = 3;
 }
 
-message StartVideoStreamingResponse {
-  uint32 listen_port = 1;
-}
-
-message StartAudioStreamingRequest {
-  string gst_pipeline = 1;
-
-  // Use 0 to allocate random port
-  int32 port = 2;
-}
-
-message StartAudioStreamingResponse {
+message StartStreamingResponse {
   uint32 listen_port = 1;
 }

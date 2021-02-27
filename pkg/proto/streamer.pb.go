@@ -17,82 +17,49 @@ var _ = proto1.Marshal
 var _ = fmt.Errorf
 var _ = math.Inf
 
-type StartVideoStreamingRequest struct {
-	GstPipeline string `protobuf:"bytes,1,opt,name=gst_pipeline,json=gstPipeline" json:"gst_pipeline,omitempty"`
+type StartStreamingRequest struct {
+	MediaId     string `protobuf:"bytes,1,opt,name=media_id,json=mediaId" json:"media_id,omitempty"`
+	GstPipeline string `protobuf:"bytes,2,opt,name=gst_pipeline,json=gstPipeline" json:"gst_pipeline,omitempty"`
 	// Use 0 to allocate random port
-	Port int32 `protobuf:"varint,2,opt,name=port" json:"port,omitempty"`
+	Port int32 `protobuf:"varint,3,opt,name=port" json:"port,omitempty"`
 }
 
-func (m *StartVideoStreamingRequest) Reset()                    { *m = StartVideoStreamingRequest{} }
-func (m *StartVideoStreamingRequest) String() string            { return proto1.CompactTextString(m) }
-func (*StartVideoStreamingRequest) ProtoMessage()               {}
-func (*StartVideoStreamingRequest) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{0} }
+func (m *StartStreamingRequest) Reset()                    { *m = StartStreamingRequest{} }
+func (m *StartStreamingRequest) String() string            { return proto1.CompactTextString(m) }
+func (*StartStreamingRequest) ProtoMessage()               {}
+func (*StartStreamingRequest) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{0} }
 
-func (m *StartVideoStreamingRequest) GetGstPipeline() string {
+func (m *StartStreamingRequest) GetMediaId() string {
+	if m != nil {
+		return m.MediaId
+	}
+	return ""
+}
+
+func (m *StartStreamingRequest) GetGstPipeline() string {
 	if m != nil {
 		return m.GstPipeline
 	}
 	return ""
 }
 
-func (m *StartVideoStreamingRequest) GetPort() int32 {
+func (m *StartStreamingRequest) GetPort() int32 {
 	if m != nil {
 		return m.Port
 	}
 	return 0
 }
 
-type StartVideoStreamingResponse struct {
+type StartStreamingResponse struct {
 	ListenPort uint32 `protobuf:"varint,1,opt,name=listen_port,json=listenPort" json:"listen_port,omitempty"`
 }
 
-func (m *StartVideoStreamingResponse) Reset()                    { *m = StartVideoStreamingResponse{} }
-func (m *StartVideoStreamingResponse) String() string            { return proto1.CompactTextString(m) }
-func (*StartVideoStreamingResponse) ProtoMessage()               {}
-func (*StartVideoStreamingResponse) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{1} }
+func (m *StartStreamingResponse) Reset()                    { *m = StartStreamingResponse{} }
+func (m *StartStreamingResponse) String() string            { return proto1.CompactTextString(m) }
+func (*StartStreamingResponse) ProtoMessage()               {}
+func (*StartStreamingResponse) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{1} }
 
-func (m *StartVideoStreamingResponse) GetListenPort() uint32 {
-	if m != nil {
-		return m.ListenPort
-	}
-	return 0
-}
-
-type StartAudioStreamingRequest struct {
-	GstPipeline string `protobuf:"bytes,1,opt,name=gst_pipeline,json=gstPipeline" json:"gst_pipeline,omitempty"`
-	// Use 0 to allocate random port
-	Port int32 `protobuf:"varint,2,opt,name=port" json:"port,omitempty"`
-}
-
-func (m *StartAudioStreamingRequest) Reset()                    { *m = StartAudioStreamingRequest{} }
-func (m *StartAudioStreamingRequest) String() string            { return proto1.CompactTextString(m) }
-func (*StartAudioStreamingRequest) ProtoMessage()               {}
-func (*StartAudioStreamingRequest) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{2} }
-
-func (m *StartAudioStreamingRequest) GetGstPipeline() string {
-	if m != nil {
-		return m.GstPipeline
-	}
-	return ""
-}
-
-func (m *StartAudioStreamingRequest) GetPort() int32 {
-	if m != nil {
-		return m.Port
-	}
-	return 0
-}
-
-type StartAudioStreamingResponse struct {
-	ListenPort uint32 `protobuf:"varint,1,opt,name=listen_port,json=listenPort" json:"listen_port,omitempty"`
-}
-
-func (m *StartAudioStreamingResponse) Reset()                    { *m = StartAudioStreamingResponse{} }
-func (m *StartAudioStreamingResponse) String() string            { return proto1.CompactTextString(m) }
-func (*StartAudioStreamingResponse) ProtoMessage()               {}
-func (*StartAudioStreamingResponse) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{3} }
-
-func (m *StartAudioStreamingResponse) GetListenPort() uint32 {
+func (m *StartStreamingResponse) GetListenPort() uint32 {
 	if m != nil {
 		return m.ListenPort
 	}
@@ -100,10 +67,8 @@ func (m *StartAudioStreamingResponse) GetListenPort() uint32 {
 }
 
 func init() {
-	proto1.RegisterType((*StartVideoStreamingRequest)(nil), "StartVideoStreamingRequest")
-	proto1.RegisterType((*StartVideoStreamingResponse)(nil), "StartVideoStreamingResponse")
-	proto1.RegisterType((*StartAudioStreamingRequest)(nil), "StartAudioStreamingRequest")
-	proto1.RegisterType((*StartAudioStreamingResponse)(nil), "StartAudioStreamingResponse")
+	proto1.RegisterType((*StartStreamingRequest)(nil), "StartStreamingRequest")
+	proto1.RegisterType((*StartStreamingResponse)(nil), "StartStreamingResponse")
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -117,8 +82,7 @@ const _ = grpc.SupportPackageIsVersion4
 // Client API for Streamer service
 
 type StreamerClient interface {
-	StartVideoStreaming(ctx context.Context, in *StartVideoStreamingRequest, opts ...grpc.CallOption) (*StartVideoStreamingResponse, error)
-	StartAudioStreaming(ctx context.Context, in *StartAudioStreamingRequest, opts ...grpc.CallOption) (*StartAudioStreamingResponse, error)
+	StartStreaming(ctx context.Context, in *StartStreamingRequest, opts ...grpc.CallOption) (*StartStreamingResponse, error)
 }
 
 type streamerClient struct {
@@ -129,18 +93,9 @@ func NewStreamerClient(cc *grpc.ClientConn) StreamerClient {
 	return &streamerClient{cc}
 }
 
-func (c *streamerClient) StartVideoStreaming(ctx context.Context, in *StartVideoStreamingRequest, opts ...grpc.CallOption) (*StartVideoStreamingResponse, error) {
-	out := new(StartVideoStreamingResponse)
-	err := grpc.Invoke(ctx, "/Streamer/StartVideoStreaming", in, out, c.cc, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *streamerClient) StartAudioStreaming(ctx context.Context, in *StartAudioStreamingRequest, opts ...grpc.CallOption) (*StartAudioStreamingResponse, error) {
-	out := new(StartAudioStreamingResponse)
-	err := grpc.Invoke(ctx, "/Streamer/StartAudioStreaming", in, out, c.cc, opts...)
+func (c *streamerClient) StartStreaming(ctx context.Context, in *StartStreamingRequest, opts ...grpc.CallOption) (*StartStreamingResponse, error) {
+	out := new(StartStreamingResponse)
+	err := grpc.Invoke(ctx, "/Streamer/StartStreaming", in, out, c.cc, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -150,46 +105,27 @@ func (c *streamerClient) StartAudioStreaming(ctx context.Context, in *StartAudio
 // Server API for Streamer service
 
 type StreamerServer interface {
-	StartVideoStreaming(context.Context, *StartVideoStreamingRequest) (*StartVideoStreamingResponse, error)
-	StartAudioStreaming(context.Context, *StartAudioStreamingRequest) (*StartAudioStreamingResponse, error)
+	StartStreaming(context.Context, *StartStreamingRequest) (*StartStreamingResponse, error)
 }
 
 func RegisterStreamerServer(s *grpc.Server, srv StreamerServer) {
 	s.RegisterService(&_Streamer_serviceDesc, srv)
 }
 
-func _Streamer_StartVideoStreaming_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(StartVideoStreamingRequest)
+func _Streamer_StartStreaming_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StartStreamingRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(StreamerServer).StartVideoStreaming(ctx, in)
+		return srv.(StreamerServer).StartStreaming(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/Streamer/StartVideoStreaming",
+		FullMethod: "/Streamer/StartStreaming",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(StreamerServer).StartVideoStreaming(ctx, req.(*StartVideoStreamingRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Streamer_StartAudioStreaming_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(StartAudioStreamingRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(StreamerServer).StartAudioStreaming(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/Streamer/StartAudioStreaming",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(StreamerServer).StartAudioStreaming(ctx, req.(*StartAudioStreamingRequest))
+		return srv.(StreamerServer).StartStreaming(ctx, req.(*StartStreamingRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -199,12 +135,8 @@ var _Streamer_serviceDesc = grpc.ServiceDesc{
 	HandlerType: (*StreamerServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "StartVideoStreaming",
-			Handler:    _Streamer_StartVideoStreaming_Handler,
-		},
-		{
-			MethodName: "StartAudioStreaming",
-			Handler:    _Streamer_StartAudioStreaming_Handler,
+			MethodName: "StartStreaming",
+			Handler:    _Streamer_StartStreaming_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
@@ -214,19 +146,18 @@ var _Streamer_serviceDesc = grpc.ServiceDesc{
 func init() { proto1.RegisterFile("proto/streamer.proto", fileDescriptor2) }
 
 var fileDescriptor2 = []byte{
-	// 221 bytes of a gzipped FileDescriptorProto
+	// 205 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0x12, 0x29, 0x28, 0xca, 0x2f,
-	0xc9, 0xd7, 0x2f, 0x2e, 0x29, 0x4a, 0x4d, 0xcc, 0x4d, 0x2d, 0xd2, 0x03, 0x73, 0x95, 0x82, 0xb9,
-	0xa4, 0x82, 0x4b, 0x12, 0x8b, 0x4a, 0xc2, 0x32, 0x53, 0x52, 0xf3, 0x83, 0xc1, 0x72, 0x99, 0x79,
-	0xe9, 0x41, 0xa9, 0x85, 0xa5, 0xa9, 0xc5, 0x25, 0x42, 0x8a, 0x5c, 0x3c, 0xe9, 0xc5, 0x25, 0xf1,
-	0x05, 0x99, 0x05, 0xa9, 0x39, 0x99, 0x79, 0xa9, 0x12, 0x8c, 0x0a, 0x8c, 0x1a, 0x9c, 0x41, 0xdc,
-	0xe9, 0xc5, 0x25, 0x01, 0x50, 0x21, 0x21, 0x21, 0x2e, 0x96, 0x82, 0xfc, 0xa2, 0x12, 0x09, 0x26,
-	0x05, 0x46, 0x0d, 0xd6, 0x20, 0x30, 0x5b, 0xc9, 0x8e, 0x4b, 0x1a, 0xab, 0xa1, 0xc5, 0x05, 0xf9,
-	0x79, 0xc5, 0xa9, 0x42, 0xf2, 0x5c, 0xdc, 0x39, 0x99, 0xc5, 0x25, 0xa9, 0x79, 0xf1, 0x60, 0x9d,
-	0x20, 0x43, 0x79, 0x83, 0xb8, 0x20, 0x42, 0x01, 0x20, 0xfd, 0x30, 0x47, 0x39, 0x96, 0xa6, 0x64,
-	0x52, 0xdd, 0x51, 0xe8, 0x86, 0x12, 0xe9, 0x28, 0xa3, 0x4d, 0x8c, 0x5c, 0x1c, 0xc1, 0xd0, 0xc0,
-	0x13, 0x0a, 0xe2, 0x12, 0xc6, 0xe2, 0x43, 0x21, 0x69, 0x3d, 0xdc, 0x81, 0x29, 0x25, 0xa3, 0x87,
-	0x27, 0x50, 0x94, 0x18, 0xe0, 0x66, 0xa2, 0x3a, 0x10, 0x66, 0x26, 0xd6, 0xb0, 0x80, 0x99, 0x89,
-	0xdd, 0x4f, 0x4a, 0x0c, 0x4e, 0xec, 0x51, 0xac, 0xe0, 0x78, 0x4e, 0x62, 0x03, 0x53, 0xc6, 0x80,
-	0x00, 0x00, 0x00, 0xff, 0xff, 0x10, 0x7a, 0xb7, 0xbd, 0x06, 0x02, 0x00, 0x00,
+	0xc9, 0xd7, 0x2f, 0x2e, 0x29, 0x4a, 0x4d, 0xcc, 0x4d, 0x2d, 0xd2, 0x03, 0x73, 0x95, 0x32, 0xb9,
+	0x44, 0x83, 0x4b, 0x12, 0x8b, 0x4a, 0x82, 0xc1, 0xc2, 0x99, 0x79, 0xe9, 0x41, 0xa9, 0x85, 0xa5,
+	0xa9, 0xc5, 0x25, 0x42, 0x92, 0x5c, 0x1c, 0xb9, 0xa9, 0x29, 0x99, 0x89, 0xf1, 0x99, 0x29, 0x12,
+	0x8c, 0x0a, 0x8c, 0x1a, 0x9c, 0x41, 0xec, 0x60, 0xbe, 0x67, 0x8a, 0x90, 0x22, 0x17, 0x4f, 0x7a,
+	0x71, 0x49, 0x7c, 0x41, 0x66, 0x41, 0x6a, 0x4e, 0x66, 0x5e, 0xaa, 0x04, 0x13, 0x58, 0x9a, 0x3b,
+	0xbd, 0xb8, 0x24, 0x00, 0x2a, 0x24, 0x24, 0xc4, 0xc5, 0x52, 0x90, 0x5f, 0x54, 0x22, 0xc1, 0xac,
+	0xc0, 0xa8, 0xc1, 0x1a, 0x04, 0x66, 0x2b, 0x59, 0x72, 0x89, 0xa1, 0x5b, 0x55, 0x5c, 0x90, 0x9f,
+	0x57, 0x9c, 0x2a, 0x24, 0xcf, 0xc5, 0x9d, 0x93, 0x59, 0x5c, 0x92, 0x9a, 0x17, 0x0f, 0xd6, 0x04,
+	0xb2, 0x8e, 0x37, 0x88, 0x0b, 0x22, 0x14, 0x90, 0x5f, 0x54, 0x62, 0xe4, 0xcf, 0xc5, 0x11, 0x0c,
+	0x75, 0xb7, 0x90, 0x33, 0x17, 0x1f, 0xaa, 0x31, 0x42, 0x62, 0x7a, 0x58, 0xbd, 0x20, 0x25, 0xae,
+	0x87, 0xdd, 0x3e, 0x25, 0x06, 0x27, 0xf6, 0x28, 0x56, 0xb0, 0xff, 0x93, 0xd8, 0xc0, 0x94, 0x31,
+	0x20, 0x00, 0x00, 0xff, 0xff, 0x5e, 0x0b, 0x83, 0x68, 0x1e, 0x01, 0x00, 0x00,
 }
