@@ -119,8 +119,13 @@
     })
     document.querySelector('#remote-video').addEventListener('mousemove', e => {
         if (!dataChannel || dataChannel.readyState !== 'open') return;
-        const moveMessage = {x: e.offsetX, y: e.offsetY}
-        dataChannel.send(JSON.stringify({'type': 'move', 'body': moveMessage}))
+        const videoEl = document.querySelector('#remote-video');
+        if (videoEl.videoWidth > 0 && videoEl.videoHeight > 0) {
+            const moveX = Math.floor(e.offsetX * (videoEl.videoWidth / videoEl.offsetWidth));
+            const moveY = Math.floor(e.offsetY * (videoEl.videoHeight / videoEl.offsetHeight));
+            const moveMessage = {x: moveX, y: moveY}
+            dataChannel.send(JSON.stringify({'type': 'move', 'body': moveMessage}))
+        }
     });
     document.addEventListener('keydown', (e) => {
         if (!dataChannel || dataChannel.readyState !== 'open') return;
