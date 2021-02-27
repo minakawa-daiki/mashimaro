@@ -21,7 +21,7 @@ var (
 	errGameExited = errors.New("game exited")
 )
 
-func (s *GameServer) startController(ctx context.Context, message <-chan []byte, captureAreaChanged <-chan *streamer.ScreenCaptureArea) error {
+func (s *GameServer) startController(ctx context.Context, message <-chan []byte, captureAreaChanged <-chan streamer.ScreenCaptureArea) error {
 	log.Printf("initialing x11 connection")
 	xu, err := xgbutil.NewConn()
 	if err != nil {
@@ -39,7 +39,7 @@ func (s *GameServer) startController(ctx context.Context, message <-chan []byte,
 		case <-ctx.Done():
 			return ctx.Err()
 		case msg := <-message:
-			if err := s.handleMessage(ctx, msg, captureArea, xu, xi); err != nil {
+			if err := s.handleMessage(ctx, msg, &captureArea, xu, xi); err != nil {
 				if err == errGameExited {
 					return err
 				}

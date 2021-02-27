@@ -43,7 +43,7 @@ func (s *GameServer) startListenCaptureArea(ctx context.Context, pub *captureAre
 			}
 			if area.IsValid() && areaHasChanged(area, &captureArea) {
 				captureArea = *area
-				pub.Publish(&captureArea)
+				pub.Publish(*area)
 			}
 		}
 	}
@@ -72,8 +72,8 @@ func getMainWindowArea(xu *xgbutil.XUtil) (*streamer.ScreenCaptureArea, error) {
 	return &streamer.ScreenCaptureArea{
 		StartX: x,
 		StartY: y,
-		EndX:   x + width - 1,
-		EndY:   y + height - 1,
+		EndX:   x + width,
+		EndY:   y + height,
 	}, nil
 }
 

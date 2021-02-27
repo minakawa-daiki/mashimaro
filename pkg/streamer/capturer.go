@@ -48,6 +48,10 @@ type ScreenCaptureArea struct {
 	EndY   int
 }
 
+func (a *ScreenCaptureArea) String() string {
+	return fmt.Sprintf("ScreenCaptureArea(%dx%d)", a.Width(), a.Height())
+}
+
 func (a *ScreenCaptureArea) Width() int {
 	return a.EndX - a.StartX
 }
@@ -57,7 +61,7 @@ func (a *ScreenCaptureArea) Height() int {
 }
 
 func (a *ScreenCaptureArea) IsValid() bool {
-	return (a.StartX > 0 && a.StartY > 0 && a.EndX > 0 && a.EndY > 0) &&
+	return (a.StartX >= 0 && a.StartY >= 0 && a.EndX >= 0 && a.EndY >= 0) &&
 		a.Width() > 0 && a.Height() > 0
 }
 

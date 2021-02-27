@@ -190,19 +190,19 @@ func (s *GameServer) shutdown() {
 }
 
 type captureAreaPubSub struct {
-	publishCh   chan *streamer.ScreenCaptureArea
-	subscribeCh chan chan *streamer.ScreenCaptureArea
+	publishCh   chan streamer.ScreenCaptureArea
+	subscribeCh chan chan streamer.ScreenCaptureArea
 }
 
 func newCaptureAreaPubSub() *captureAreaPubSub {
 	return &captureAreaPubSub{
-		publishCh:   make(chan *streamer.ScreenCaptureArea),
-		subscribeCh: make(chan chan *streamer.ScreenCaptureArea),
+		publishCh:   make(chan streamer.ScreenCaptureArea),
+		subscribeCh: make(chan chan streamer.ScreenCaptureArea),
 	}
 }
 
 func (b *captureAreaPubSub) Start(ctx context.Context) {
-	subscribers := make(map[chan *streamer.ScreenCaptureArea]struct{})
+	subscribers := make(map[chan streamer.ScreenCaptureArea]struct{})
 	for {
 		select {
 		case <-ctx.Done():
@@ -220,12 +220,12 @@ func (b *captureAreaPubSub) Start(ctx context.Context) {
 	}
 }
 
-func (b *captureAreaPubSub) Subscribe() <-chan *streamer.ScreenCaptureArea {
-	ch := make(chan *streamer.ScreenCaptureArea)
+func (b *captureAreaPubSub) Subscribe() <-chan streamer.ScreenCaptureArea {
+	ch := make(chan streamer.ScreenCaptureArea)
 	b.subscribeCh <- ch
 	return ch
 }
 
-func (b *captureAreaPubSub) Publish(area *streamer.ScreenCaptureArea) {
+func (b *captureAreaPubSub) Publish(area streamer.ScreenCaptureArea) {
 	b.publishCh <- area
 }
