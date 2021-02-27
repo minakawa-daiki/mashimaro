@@ -24,6 +24,8 @@ type Client struct {
 	onConnect    func()
 	onDisconnect func()
 	callbackMu   sync.Mutex
+
+	pendingCandidates []*webrtc.ICECandidateInit
 }
 
 type opts struct {
@@ -166,6 +168,13 @@ func (c *Client) handleMessage(msg *receivedMessage) {
 			log.Printf("failed to set remote desc: %+v", err)
 			return
 		}
+		for _, cand := range c.pendingCandidates {
+			if err := c.pc.AddICECandidate(*cand); err != nil {
+				log.Printf("failed to add ice candidate: %+v", err)
+				return
+			}
+		}
+		c.pendingCandidates = nil
 		if err := c.sendAnswer(); err != nil {
 			log.Printf("failed to send answer: %+v", err)
 			return
@@ -181,6 +190,13 @@ func (c *Client) handleMessage(msg *receivedMessage) {
 			log.Printf("failed to set remote desc: %+v", err)
 			return
 		}
+		for _, cand := range c.pendingCandidates {
+			if err := c.pc.AddICECandidate(*cand); err != nil {
+				log.Printf("failed to add ice candidate: %+v", err)
+				return
+			}
+		}
+		c.pendingCandidates = nil
 	case "candidate":
 		var candMsg candidateMessage
 		if err := json.Unmarshal(msg.Payload, &candMsg); err != nil {
@@ -189,9 +205,13 @@ func (c *Client) handleMessage(msg *receivedMessage) {
 		}
 		if candMsg.ICECandidate != nil {
 			log.Printf("[%s] add ice candidate from remote peer: %s", c.cid, candMsg.ICECandidate.Candidate)
-			if err := c.pc.AddICECandidate(*candMsg.ICECandidate); err != nil {
-				log.Printf("failed to add ice candidate: %+v", err)
-				return
+			if c.pc.RemoteDescription() != nil {
+				if err := c.pc.AddICECandidate(*candMsg.ICECandidate); err != nil {
+					log.Printf("failed to add ice candidate: %+v", err)
+					return
+				}
+			} else {
+				c.pendingCandidates = append(c.pendingCandidates, candMsg.ICECandidate)
 			}
 		}
 	case "bye":

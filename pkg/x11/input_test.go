@@ -4,19 +4,16 @@ import (
 	"testing"
 	"time"
 
+	"github.com/BurntSushi/xgbutil"
+
 	"github.com/stretchr/testify/assert"
 
 	"github.com/BurntSushi/xgbutil/keybind"
 
 	"github.com/BurntSushi/xgb/xproto"
-	"github.com/BurntSushi/xgbutil"
 )
 
-func newDefaultInputter(t *testing.T) *Inputter {
-	xu, err := xgbutil.NewConn()
-	if err != nil {
-		t.Fatal(err)
-	}
+func newDefaultInputter(t *testing.T, xu *xgbutil.XUtil) *Inputter {
 	i, err := NewInputter(xu)
 	if err != nil {
 		t.Fatal(err)
@@ -25,13 +22,15 @@ func newDefaultInputter(t *testing.T) *Inputter {
 }
 
 func TestMove(t *testing.T) {
-	i := newDefaultInputter(t)
+	xu := newDefaultXUtil(t)
+	i := newDefaultInputter(t, xu)
 	i.Move(0, 0)
 }
 
 func TestSendKey(t *testing.T) {
-	i := newDefaultInputter(t)
-	StartWineProcess(t, "notepad")
+	xu := newDefaultXUtil(t)
+	i := newDefaultInputter(t, xu)
+	mustReadyWineProcess(t, xu, "notepad")
 
 	for _, char := range "hello" {
 		for _, keycode := range keybind.StrToKeycodes(i.xu, string(char)) {
@@ -42,8 +41,9 @@ func TestSendKey(t *testing.T) {
 }
 
 func TestButton(t *testing.T) {
-	i := newDefaultInputter(t)
-	cmd := StartWineProcess(t, "notepad")
+	xu := newDefaultXUtil(t)
+	i := newDefaultInputter(t, xu)
+	cmd := mustReadyWineProcess(t, xu, "notepad")
 	windows, err := EnumWindowsByPid(i.xu, cmd.Process.Pid, i.xu.RootWin(), true)
 	assert.NoError(t, err)
 	mainWindow, err := GetMainWindow(i.xu, windows)

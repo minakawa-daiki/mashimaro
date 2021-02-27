@@ -3,10 +3,8 @@ package gameserver
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"log"
-	"net"
-	"net/url"
+	"os"
 	"sync"
 	"testing"
 	"time"
@@ -34,20 +32,6 @@ import (
 	"github.com/castaneai/mashimaro/pkg/testutils"
 	"google.golang.org/grpc"
 )
-
-const (
-	ayameURL = "ws://localhost:3000/signaling"
-)
-
-func checkAyame(t *testing.T) {
-	u, err := url.Parse(ayameURL)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := net.DialTimeout("tcp", u.Host, 100*time.Millisecond); err != nil {
-		t.Skip(fmt.Sprintf("A Test was skipped. Make sure that Ayame is running on %s", ayameURL))
-	}
-}
 
 func newTestInternalBrokerClient(t *testing.T, sstore gamesession.Store, mstore gamemetadata.Store) proto.BrokerClient {
 	lis := testutils.ListenTCPWithRandomPort(t)
@@ -156,7 +140,10 @@ func sendExitGameMessage(t *testing.T, conn transport.PlayerConn) {
 }
 
 func TestGameServerLifecycle(t *testing.T) {
-	checkAyame(t)
+	ayameURL := os.Getenv("AYAME_URL")
+	if ayameURL == "" {
+		t.Skip("Set AYAME_URL to run this test")
+	}
 
 	ctx := context.Background()
 	allocatedServer := &allocator.AllocatedServer{

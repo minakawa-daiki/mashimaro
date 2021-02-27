@@ -3,11 +3,8 @@ package transport
 import (
 	"context"
 	"fmt"
-	"net"
-	"net/url"
 	"os"
 	"testing"
-	"time"
 
 	"github.com/castaneai/mashimaro/pkg/ayame"
 
@@ -15,22 +12,11 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-const (
-	ayameURL = "ws://localhost:3000/signaling"
-)
-
-func checkAyame(t *testing.T) {
-	u, err := url.Parse(ayameURL)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := net.DialTimeout("tcp", u.Host, 100*time.Millisecond); err != nil {
-		t.Skip(fmt.Sprintf("A Test was skipped. Make sure that Ayame is running on %s", ayameURL))
-	}
-}
-
 func TestSignaling(t *testing.T) {
-	checkAyame(t)
+	ayameURL := os.Getenv("AYAME_URL")
+	if ayameURL == "" {
+		t.Skip("Set AYAME_URL to run this test")
+	}
 
 	conn1, err := NewWebRTCStreamerConn(webrtc.Configuration{})
 	assert.NoError(t, err)

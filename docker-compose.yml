@@ -92,6 +92,21 @@ services:
       - x11socket:/tmp/.X11-unix/
       - appconfig:/var/run/appconfig
     ipc: host
+  test:
+    build:
+      context: .
+      dockerfile: services/test/Dockerfile
+    environment:
+      DISPLAY: ":0"
+      PULSE_SERVER: encoder:4713
+      AYAME_URL: ws://ayame:3000/signaling
+      AYAME_LABO_URL: wss://ayame-labo.shiguredo.jp/signaling
+    env_file:
+      - .env
+    volumes:
+      - .:/app
+      - x11socket:/tmp/.X11-unix/
+      - appconfig:/var/run/appconfig
 
 volumes:
   x11socket:

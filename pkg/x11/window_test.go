@@ -6,16 +6,11 @@ import (
 	"github.com/BurntSushi/xgbutil/ewmh"
 
 	"github.com/stretchr/testify/assert"
-
-	"github.com/BurntSushi/xgbutil"
 )
 
 func TestEnumWindows(t *testing.T) {
-	xu, err := xgbutil.NewConn()
-	if err != nil {
-		t.Fatal(err)
-	}
-	cmd := StartWineProcess(t, "notepad", "unknown_file")
+	xu := newDefaultXUtil(t)
+	cmd := mustReadyWineProcess(t, xu, "notepad", "unknown_file")
 	windows, err := EnumWindowsByPid(xu, cmd.Process.Pid, xu.RootWin(), true)
 	if err != nil {
 		t.Fatal(err)
@@ -24,11 +19,8 @@ func TestEnumWindows(t *testing.T) {
 }
 
 func TestGetMainWindow(t *testing.T) {
-	xu, err := xgbutil.NewConn()
-	if err != nil {
-		t.Fatal(err)
-	}
-	cmd := StartWineProcess(t, "notepad", "unknown_file")
+	xu := newDefaultXUtil(t)
+	cmd := mustReadyWineProcess(t, xu, "notepad", "unknown_file")
 	windows, err := EnumWindowsByPid(xu, cmd.Process.Pid, xu.RootWin(), true)
 	if err != nil {
 		t.Fatal(err)
@@ -52,11 +44,8 @@ func TestGetMainWindow(t *testing.T) {
 }
 
 func TestCenterWindow(t *testing.T) {
-	xu, err := xgbutil.NewConn()
-	if err != nil {
-		t.Fatal(err)
-	}
-	cmd := StartWineProcess(t, "notepad", "unknown_file")
+	xu := newDefaultXUtil(t)
+	cmd := mustReadyWineProcess(t, xu, "notepad", "unknown_file")
 	windows, err := EnumWindowsByPid(xu, cmd.Process.Pid, xu.RootWin(), true)
 	if err != nil {
 		t.Fatal(err)
