@@ -64,6 +64,7 @@
         const ayameLaboAccount = document.querySelector('#ayameLaboAccount').value
         const roomId = `${ayameLaboAccount}@${sid}`
 
+        localStorage.setItem('mashimaro_gameId', gameId)
         localStorage.setItem('mashimaro_sessionId', sid)
         localStorage.setItem('mashimaro_ayameLaboSignalingKey', ayameLaboSignalingKey)
         localStorage.setItem('mashimaro_ayameLaboAccount', ayameLaboAccount)
@@ -96,6 +97,10 @@
         console.log('message received: ', e.data);
     }
     window.onload = () => {
+        const gameId = localStorage.getItem('mashimaro_gameId');
+        if (gameId) {
+            document.querySelector('#gameId').value = gameId
+        }
         document.querySelector('#ayameLaboSignalingKey').value = localStorage.getItem('mashimaro_ayameLaboSignalingKey')
         document.querySelector('#ayameLaboAccount').value = localStorage.getItem('mashimaro_ayameLaboAccount')
     }
