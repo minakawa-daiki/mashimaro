@@ -1,4 +1,4 @@
-package streamerproto
+package encoderproto
 
 import (
 	"encoding/binary"

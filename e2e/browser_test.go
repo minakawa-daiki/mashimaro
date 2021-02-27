@@ -12,10 +12,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/castaneai/mashimaro/pkg/streamer/streamerproto"
+	"github.com/castaneai/mashimaro/pkg/gameserver"
+
+	"github.com/castaneai/mashimaro/pkg/encoder/encoderproto"
 
 	"github.com/castaneai/mashimaro/pkg/proto"
-	"github.com/castaneai/mashimaro/pkg/streamer"
 	"google.golang.org/grpc"
 
 	"github.com/stretchr/testify/assert"
@@ -29,10 +30,10 @@ import (
 )
 
 const (
-	testHtmlFile      = "test.html"
-	testOggFile       = "example.ogg"
-	streamerServer    = "localhost:50502"
-	streamerAudioPort = 50601 // see docker-compose.yml
+	testHtmlFile     = "test.html"
+	testOggFile      = "example.ogg"
+	encoderServer    = "localhost:50502"
+	encoderAudioPort = 50601 // see docker-compose.yml
 )
 
 var drivers = map[string]func() *agouti.WebDriver{
@@ -112,7 +113,7 @@ func TestWebRTCConnection(t *testing.T) {
 			assert.NoError(t, page.Click(agouti.SingleClick, agouti.LeftButton)) // to avoid "play() failed because the user didn't interact with the document first"
 
 			ctx := context.Background()
-			go startPushPulseAudioFromStreamer(ctx, t, track, streamerServer)
+			go startPushPulseAudioFromEncoder(ctx, t, track, encoderServer)
 			<-connected
 		})
 	}
@@ -140,34 +141,35 @@ func startPushOggFile(t *testing.T, track *webrtc.TrackLocalStaticSample, oggFil
 	}
 }
 
-func startPushPulseAudioFromStreamer(ctx context.Context, t *testing.T, track *webrtc.TrackLocalStaticSample, streamerAddr string) {
-	pulse := streamer.NewPulseAudioCapturer("localhost:4713")
-	p := streamer.NewOpusEncoder(pulse)
+func startPushPulseAudioFromEncoder(ctx context.Context, t *testing.T, track *webrtc.TrackLocalStaticSample, encoderAddr string) {
+	pulse := gameserver.NewPulseAudioCapturer("localhost:4713")
+	p := gameserver.NewOpusEncoder(pulse)
 	gstPipeline, err := p.CompileGstPipeline()
 	if err != nil {
 		panic(fmt.Errorf("failed to complie gst pipeline: %+v", err))
 	}
-	cc, err := grpc.Dial(streamerAddr, grpc.WithInsecure())
+	cc, err := grpc.Dial(encoderAddr, grpc.WithInsecure())
 	if err != nil {
-		panic(fmt.Errorf("failed to dial to streamer: %+v", err))
+		panic(fmt.Errorf("failed to dial to encoder: %+v", err))
 	}
-	sc := proto.NewStreamerClient(cc)
-	resp, err := sc.StartAudioStreaming(ctx, &proto.StartAudioStreamingRequest{
+	sc := proto.NewEncoderClient(cc)
+	resp, err := sc.StartEncoding(ctx, &proto.StartEncodingRequest{
+		PipelineId:  "audio",
 		GstPipeline: gstPipeline,
-		Port:        streamerAudioPort,
+		Port:        encoderAudioPort,
 	})
 	if err != nil {
 		panic(fmt.Errorf("failed to start audio streaming: %+v", err))
 	}
-	audioAddr := fmt.Sprintf("%s:%d", strings.Split(streamerAddr, ":")[0], resp.ListenPort)
+	audioAddr := fmt.Sprintf("%s:%d", strings.Split(encoderAddr, ":")[0], resp.ListenPort)
 	conn, err := net.Dial("tcp", audioAddr)
 	if err != nil {
-		panic(fmt.Errorf("failed to dial to audio streamer: %+v", err))
+		panic(fmt.Errorf("failed to dial to audio encoder: %+v", err))
 	}
 	r := bufio.NewReader(conn)
 	for {
-		var sp streamerproto.SamplePacket
-		if err := streamerproto.ReadSamplePacket(r, &sp); err != nil {
+		var sp encoderproto.SamplePacket
+		if err := encoderproto.ReadSamplePacket(r, &sp); err != nil {
 			panic(fmt.Errorf("failed to read sample packet: %+v", err))
 		}
 		if err := track.WriteSample(media.Sample{

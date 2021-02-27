@@ -5,7 +5,7 @@ import (
 	"log"
 	"net"
 
-	"github.com/castaneai/mashimaro/pkg/streamer/streamerserver"
+	"github.com/castaneai/mashimaro/pkg/encoder"
 
 	"github.com/castaneai/mashimaro/pkg/proto"
 	"github.com/kelseyhightower/envconfig"
@@ -29,6 +29,6 @@ func main() {
 		log.Fatal(err)
 	}
 	s := grpc.NewServer()
-	proto.RegisterStreamerServer(s, streamerserver.NewStreamerServer())
+	proto.RegisterEncoderServer(s, encoder.NewEncoderServer())
 	log.Fatal(s.Serve(lis))
 }

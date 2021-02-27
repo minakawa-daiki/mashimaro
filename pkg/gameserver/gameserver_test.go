@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/castaneai/mashimaro/pkg/streamer/streamerserver"
+	"github.com/castaneai/mashimaro/pkg/encoder"
 
 	"github.com/castaneai/mashimaro/pkg/allocator"
 
@@ -49,7 +49,7 @@ func checkAyame(t *testing.T) {
 	}
 }
 
-func newInternalBrokerClient(t *testing.T, sstore gamesession.Store, mstore gamemetadata.Store) proto.BrokerClient {
+func newTestInternalBrokerClient(t *testing.T, sstore gamesession.Store, mstore gamemetadata.Store) proto.BrokerClient {
 	lis := testutils.ListenTCPWithRandomPort(t)
 	s := grpc.NewServer()
 	proto.RegisterBrokerServer(s, broker.NewInternalBroker(sstore, mstore))
@@ -61,7 +61,7 @@ func newInternalBrokerClient(t *testing.T, sstore gamesession.Store, mstore game
 	return proto.NewBrokerClient(cc)
 }
 
-func newGameProcessClient(t *testing.T) proto.GameProcessClient {
+func newTestGameProcessClient(t *testing.T) proto.GameProcessClient {
 	lis := testutils.ListenTCPWithRandomPort(t)
 	s := grpc.NewServer()
 	proto.RegisterGameProcessServer(s, gameprocess.NewGameProcessServer())
@@ -73,16 +73,16 @@ func newGameProcessClient(t *testing.T) proto.GameProcessClient {
 	return proto.NewGameProcessClient(cc)
 }
 
-func newStreamerClient(t *testing.T) proto.StreamerClient {
+func newTestEncoderClient(t *testing.T) proto.EncoderClient {
 	lis := testutils.ListenTCPWithRandomPort(t)
 	s := grpc.NewServer()
-	proto.RegisterStreamerServer(s, streamerserver.NewStreamerServer())
+	proto.RegisterEncoderServer(s, encoder.NewEncoderServer())
 	go s.Serve(lis)
 	cc, err := grpc.Dial(lis.Addr().String(), grpc.WithInsecure())
 	if err != nil {
 		t.Fatalf("failed to dial to game process: %+v", err)
 	}
-	return proto.NewStreamerClient(cc)
+	return proto.NewEncoderClient(cc)
 }
 
 func sendMoveMessage(t *testing.T, conn transport.PlayerConn, msg *MoveMessage) {
@@ -170,16 +170,16 @@ func TestGameServerLifecycle(t *testing.T) {
 	mstore := gamemetadata.NewInMemoryStore()
 	err := mstore.AddGameMetadata(ctx, gameMetadata)
 	assert.NoError(t, err)
-	brokerClient := newInternalBrokerClient(t, sstore, mstore)
-	gameProcessClient := newGameProcessClient(t)
-	streamerClient := newStreamerClient(t)
+	brokerClient := newTestInternalBrokerClient(t, sstore, mstore)
+	gameProcessClient := newTestGameProcessClient(t)
+	encoderClient := newTestEncoderClient(t)
 	signaler := transport.NewAyameSignaler(ayameURL)
 	ss, err := sstore.NewSession(ctx, &gamesession.NewSessionRequest{
 		GameID:            gameMetadata.GameID,
 		AllocatedServerID: allocatedServer.ID,
 	})
 	assert.NoError(t, err)
-	gameServer := NewGameServer(allocatedServer, brokerClient, gameProcessClient, streamerClient, signaler)
+	gameServer := NewGameServer(allocatedServer, brokerClient, gameProcessClient, encoderClient, signaler)
 	shutdown := make(chan struct{})
 	gameServer.OnShutdown(func() {
 		close(shutdown)

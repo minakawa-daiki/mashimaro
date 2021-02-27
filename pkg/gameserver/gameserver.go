@@ -7,8 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/castaneai/mashimaro/pkg/streamer"
-
 	"github.com/castaneai/mashimaro/pkg/gamemetadata"
 
 	"github.com/castaneai/mashimaro/pkg/allocator"
@@ -43,18 +41,18 @@ type GameServer struct {
 	allocatedServer *allocator.AllocatedServer
 	broker          proto.BrokerClient
 	gameProcess     proto.GameProcessClient
-	streamer        proto.StreamerClient
+	encoder         proto.EncoderClient
 	signaler        transport.WebRTCSignaler
 	onShutdown      func()
 	callbackMu      sync.Mutex
 }
 
-func NewGameServer(allocatedServer *allocator.AllocatedServer, broker proto.BrokerClient, gameProcess proto.GameProcessClient, streamer proto.StreamerClient, signaler transport.WebRTCSignaler) *GameServer {
+func NewGameServer(allocatedServer *allocator.AllocatedServer, broker proto.BrokerClient, gameProcess proto.GameProcessClient, encoder proto.EncoderClient, signaler transport.WebRTCSignaler) *GameServer {
 	return &GameServer{
 		allocatedServer: allocatedServer,
 		broker:          broker,
 		gameProcess:     gameProcess,
-		streamer:        streamer,
+		encoder:         encoder,
 		signaler:        signaler,
 	}
 }
@@ -144,11 +142,11 @@ func (s *GameServer) Serve(ctx context.Context) error {
 		}
 	}()
 
-	captureAreaChanged := newCaptureAreaPubSub()
-	go func() { captureAreaChanged.Start(ctx) }()
-	go func() { errCh <- s.startStreaming(ctx, conn, captureAreaChanged.Subscribe()) }()
-	go func() { errCh <- s.startController(ctx, messageReceived, captureAreaChanged.Subscribe()) }()
-	go func() { errCh <- s.startWatchGame(ctx, captureAreaChanged) }()
+	captureRectChanged := newCaptureRectPubSub()
+	go func() { captureRectChanged.Start(ctx) }()
+	go func() { errCh <- s.startStreaming(ctx, conn, captureRectChanged.Subscribe()) }()
+	go func() { errCh <- s.startController(ctx, messageReceived, captureRectChanged.Subscribe()) }()
+	go func() { errCh <- s.startWatchGame(ctx, captureRectChanged) }()
 	for {
 		select {
 		case <-ctx.Done():
@@ -193,28 +191,28 @@ func (s *GameServer) shutdown() {
 	}
 }
 
-type captureAreaPubSub struct {
-	publishCh   chan streamer.ScreenCaptureArea
-	subscribeCh chan chan streamer.ScreenCaptureArea
+type captureRectPubSub struct {
+	publishCh   chan ScreenRect
+	subscribeCh chan chan ScreenRect
 }
 
-func newCaptureAreaPubSub() *captureAreaPubSub {
-	return &captureAreaPubSub{
-		publishCh:   make(chan streamer.ScreenCaptureArea),
-		subscribeCh: make(chan chan streamer.ScreenCaptureArea),
+func newCaptureRectPubSub() *captureRectPubSub {
+	return &captureRectPubSub{
+		publishCh:   make(chan ScreenRect),
+		subscribeCh: make(chan chan ScreenRect),
 	}
 }
 
-func (b *captureAreaPubSub) Start(ctx context.Context) {
-	subscribers := make(map[chan streamer.ScreenCaptureArea]struct{})
+func (b *captureRectPubSub) Start(ctx context.Context) {
+	subscribers := make(map[chan ScreenRect]struct{})
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case area := <-b.publishCh:
+		case rect := <-b.publishCh:
 			for sub := range subscribers {
 				select {
-				case sub <- area:
+				case sub <- rect:
 				default:
 				}
 			}
@@ -224,12 +222,12 @@ func (b *captureAreaPubSub) Start(ctx context.Context) {
 	}
 }
 
-func (b *captureAreaPubSub) Subscribe() <-chan streamer.ScreenCaptureArea {
-	ch := make(chan streamer.ScreenCaptureArea)
+func (b *captureRectPubSub) Subscribe() <-chan ScreenRect {
+	ch := make(chan ScreenRect)
 	b.subscribeCh <- ch
 	return ch
 }
 
-func (b *captureAreaPubSub) Publish(area streamer.ScreenCaptureArea) {
-	b.publishCh <- area
+func (b *captureRectPubSub) Publish(rect ScreenRect) {
+	b.publishCh <- rect
 }

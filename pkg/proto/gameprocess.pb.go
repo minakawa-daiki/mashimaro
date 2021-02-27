@@ -26,7 +26,7 @@ type StartGameRequest struct {
 func (m *StartGameRequest) Reset()                    { *m = StartGameRequest{} }
 func (m *StartGameRequest) String() string            { return proto1.CompactTextString(m) }
 func (*StartGameRequest) ProtoMessage()               {}
-func (*StartGameRequest) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{0} }
+func (*StartGameRequest) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{0} }
 
 func (m *StartGameRequest) GetCommand() string {
 	if m != nil {
@@ -55,7 +55,7 @@ type StartGameResponse struct {
 func (m *StartGameResponse) Reset()                    { *m = StartGameResponse{} }
 func (m *StartGameResponse) String() string            { return proto1.CompactTextString(m) }
 func (*StartGameResponse) ProtoMessage()               {}
-func (*StartGameResponse) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{1} }
+func (*StartGameResponse) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{1} }
 
 type ExitGameRequest struct {
 }
@@ -63,7 +63,7 @@ type ExitGameRequest struct {
 func (m *ExitGameRequest) Reset()                    { *m = ExitGameRequest{} }
 func (m *ExitGameRequest) String() string            { return proto1.CompactTextString(m) }
 func (*ExitGameRequest) ProtoMessage()               {}
-func (*ExitGameRequest) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{2} }
+func (*ExitGameRequest) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{2} }
 
 type ExitGameResponse struct {
 }
@@ -71,7 +71,7 @@ type ExitGameResponse struct {
 func (m *ExitGameResponse) Reset()                    { *m = ExitGameResponse{} }
 func (m *ExitGameResponse) String() string            { return proto1.CompactTextString(m) }
 func (*ExitGameResponse) ProtoMessage()               {}
-func (*ExitGameResponse) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{3} }
+func (*ExitGameResponse) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{3} }
 
 func init() {
 	proto1.RegisterType((*StartGameRequest)(nil), "StartGameRequest")
@@ -185,9 +185,9 @@ var _GameProcess_serviceDesc = grpc.ServiceDesc{
 	Metadata: "proto/gameprocess.proto",
 }
 
-func init() { proto1.RegisterFile("proto/gameprocess.proto", fileDescriptor1) }
+func init() { proto1.RegisterFile("proto/gameprocess.proto", fileDescriptor2) }
 
-var fileDescriptor1 = []byte{
+var fileDescriptor2 = []byte{
 	// 219 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0x12, 0x2f, 0x28, 0xca, 0x2f,
 	0xc9, 0xd7, 0x4f, 0x4f, 0xcc, 0x4d, 0x2d, 0x28, 0xca, 0x4f, 0x4e, 0x2d, 0x2e, 0xd6, 0x03, 0x8b,

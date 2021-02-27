@@ -6,8 +6,8 @@ Package proto is a generated protocol buffer package.
 
 It is generated from these files:
 	proto/broker.proto
+	proto/encoder.proto
 	proto/gameprocess.proto
-	proto/streamer.proto
 
 It has these top-level messages:
 	FindSessionRequest
@@ -18,12 +18,12 @@ It has these top-level messages:
 	GetGameMetadataRequest
 	GetGameMetadataResponse
 	GameMetadata
+	StartEncodingRequest
+	StartEncodingResponse
 	StartGameRequest
 	StartGameResponse
 	ExitGameRequest
 	ExitGameResponse
-	StartStreamingRequest
-	StartStreamingResponse
 */
 package proto
 

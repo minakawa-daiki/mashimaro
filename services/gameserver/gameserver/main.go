@@ -28,7 +28,7 @@ type config struct {
 	AyameLaboGitHubAccount string `envconfig:"AYAME_LABO_GITHUB_ACCOUNT" required:"true"`
 	InternalBrokerAddr     string `envconfig:"INTERNAL_BROKER_ADDR" required:"true"`
 	GameProcessAddr        string `envconfig:"GAME_PROCESS_ADDR" required:"true"`
-	StreamerAddr           string `envconfig:"STREAMER_ADDR" required:"true"`
+	EncoderAddr            string `envconfig:"ENCODER_ADDR" required:"true"`
 	UseMockAllocator       bool   `envconfig:"USE_MOCK_ALLOCATOR" default:"false"`
 }
 
@@ -68,13 +68,13 @@ func main() {
 		log.Fatalf("failed to dial to game process: %+v", err)
 	}
 	gameProcessClient := proto.NewGameProcessClient(gameProcessCC)
-	streamerCC, err := grpc.Dial(conf.StreamerAddr, dialOpts...)
+	encoderCC, err := grpc.Dial(conf.EncoderAddr, dialOpts...)
 	if err != nil {
 		log.Fatalf("failed to dial to game process: %+v", err)
 	}
-	streamerClient := proto.NewStreamerClient(streamerCC)
+	encoderClient := proto.NewEncoderClient(encoderCC)
 	signaler := transport.NewAyameLaboSignaler(conf.AyameLaboURL, conf.AyameLaboSignalingKey, conf.AyameLaboGitHubAccount)
-	gameServer := gameserver.NewGameServer(allocatedServer, brokerClient, gameProcessClient, streamerClient, signaler)
+	gameServer := gameserver.NewGameServer(allocatedServer, brokerClient, gameProcessClient, encoderClient, signaler)
 	if agones != nil {
 		gameServer.OnShutdown(func() {
 			if err := agones.Shutdown(); err != nil {
