@@ -155,6 +155,8 @@ func (s *GameServer) Serve(ctx context.Context) error {
 			return err
 		case <-disconnected:
 			return fmt.Errorf("disconnected")
+		case <-sessionDeleted:
+			return fmt.Errorf("session deleted")
 		}
 	}
 }
