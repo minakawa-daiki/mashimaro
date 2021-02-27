@@ -31,15 +31,17 @@ func (s *GameServer) startController(ctx context.Context, message <-chan []byte,
 	if err != nil {
 		return errors.Wrap(err, "failed to new X11 inputter")
 	}
-	log.Printf("waiting for capture area")
-	captureArea := <-captureAreaChanged
 	log.Printf("start messaging")
+	var captureArea *streamer.ScreenCaptureArea
 	for {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
+		case area := <-captureAreaChanged:
+			log.Printf("capture area has changed: %s", &area)
+			captureArea = &area
 		case msg := <-message:
-			if err := s.handleMessage(ctx, msg, &captureArea, xu, xi); err != nil {
+			if err := s.handleMessage(ctx, msg, captureArea, xu, xi); err != nil {
 				if err == errGameExited {
 					return err
 				}
