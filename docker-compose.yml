@@ -37,7 +37,7 @@ services:
       GAME_PROCESS_ADDR: gameprocess:50501
       ENCODER_HOST: encoder
       ENCODER_ADDR: encoder:50502
-      PULSE_ADDR: localhost:4713
+      PULSE_SERVER: localhost:4713
       USE_MOCK_ALLOCATOR: 1
       DISPLAY: ":0"
     env_file:
@@ -101,6 +101,8 @@ services:
       PULSE_SERVER: encoder:4713
       AYAME_URL: ws://ayame:3000/signaling
       AYAME_LABO_URL: wss://ayame-labo.shiguredo.jp/signaling
+      ENCODER_HOST: encoder
+      ENCODER_ADDR: encoder:50502
     env_file:
       - .env
     volumes:
