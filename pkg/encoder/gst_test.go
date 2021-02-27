@@ -1,11 +1,11 @@
-package streamerserver
+package encoder
 
 import (
 	"net"
 	"testing"
 	"time"
 
-	"github.com/castaneai/mashimaro/pkg/streamer/streamerproto"
+	"github.com/castaneai/mashimaro/pkg/encoder/encoderproto"
 
 	"github.com/castaneai/mashimaro/pkg/testutils"
 	"github.com/stretchr/testify/assert"
@@ -20,8 +20,8 @@ func TestGstServer(t *testing.T) {
 	}()
 	conn, err := net.Dial("tcp", lis.Addr().String())
 	assert.NoError(t, err)
-	var sp streamerproto.SamplePacket
-	assert.NoError(t, streamerproto.ReadSamplePacket(conn, &sp))
+	var sp encoderproto.SamplePacket
+	assert.NoError(t, encoderproto.ReadSamplePacket(conn, &sp))
 	assert.True(t, sp.Duration > 0)
 	assert.True(t, len(sp.Data) > 0)
 	conn.Close()

@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/castaneai/mashimaro/pkg/streamer"
-
 	"github.com/pkg/errors"
 
 	"github.com/BurntSushi/xgbutil"
@@ -21,7 +19,7 @@ var (
 	errGameExited = errors.New("game exited")
 )
 
-func (s *GameServer) startController(ctx context.Context, message <-chan []byte, captureAreaChanged <-chan streamer.ScreenCaptureArea) error {
+func (s *GameServer) startController(ctx context.Context, message <-chan []byte, captureRectChanged <-chan ScreenRect) error {
 	log.Printf("initialing x11 connection")
 	xu, err := xgbutil.NewConn()
 	if err != nil {
@@ -32,16 +30,16 @@ func (s *GameServer) startController(ctx context.Context, message <-chan []byte,
 		return errors.Wrap(err, "failed to new X11 inputter")
 	}
 	log.Printf("start messaging")
-	var captureArea *streamer.ScreenCaptureArea
+	var captureRect *ScreenRect
 	for {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case area := <-captureAreaChanged:
-			log.Printf("capture area has changed: %s", &area)
-			captureArea = &area
+		case rect := <-captureRectChanged:
+			log.Printf("capture rect has changed: %s", &rect)
+			captureRect = &rect
 		case msg := <-message:
-			if err := s.handleMessage(ctx, msg, captureArea, xu, xi); err != nil {
+			if err := s.handleControllerMessage(ctx, msg, captureRect, xu, xi); err != nil {
 				if err == errGameExited {
 					return err
 				}
@@ -51,7 +49,7 @@ func (s *GameServer) startController(ctx context.Context, message <-chan []byte,
 	}
 }
 
-func (s *GameServer) handleMessage(ctx context.Context, data []byte, captureArea *streamer.ScreenCaptureArea, xu *xgbutil.XUtil, xinput *x11.Inputter) error {
+func (s *GameServer) handleControllerMessage(ctx context.Context, data []byte, captureRect *ScreenRect, xu *xgbutil.XUtil, xinput *x11.Inputter) error {
 	var msg Message
 	if err := json.Unmarshal(data, &msg); err != nil {
 		return err
@@ -62,8 +60,8 @@ func (s *GameServer) handleMessage(ctx context.Context, data []byte, captureArea
 		if err := json.Unmarshal(msg.Body, &body); err != nil {
 			return err
 		}
-		x := captureArea.StartX + body.X
-		y := captureArea.StartY + body.Y
+		x := captureRect.StartX + body.X
+		y := captureRect.StartY + body.Y
 		xinput.Move(x, y)
 		return nil
 	case MessageTypeMouseDown:

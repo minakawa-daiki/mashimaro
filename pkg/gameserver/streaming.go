@@ -4,23 +4,17 @@ import (
 	"bufio"
 	"context"
 	"fmt"
-	"io"
 	"log"
 	"net"
 	"os"
-	"strings"
 	"sync"
-	"syscall"
 
 	"github.com/tevino/abool"
 
-	"github.com/pkg/errors"
-
-	"github.com/castaneai/mashimaro/pkg/streamer/streamerproto"
+	"github.com/castaneai/mashimaro/pkg/encoder/encoderproto"
 
 	"github.com/castaneai/mashimaro/pkg/proto"
 
-	"github.com/castaneai/mashimaro/pkg/streamer"
 	"github.com/castaneai/mashimaro/pkg/transport"
 )
 
@@ -28,7 +22,7 @@ const (
 	defaultX264Params = "speed-preset=ultrafast tune=zerolatency byte-stream=true intra-refresh=true"
 )
 
-func (s *GameServer) startStreaming(ctx context.Context, conn transport.StreamerConn, captureAreaChanged <-chan streamer.ScreenCaptureArea) error {
+func (s *GameServer) startStreaming(ctx context.Context, conn transport.StreamerConn, captureRectChanged <-chan ScreenRect) error {
 	errCh := make(chan error, 2)
 	go func() {
 		if err := s.startAudioStreaming(ctx, conn); err != nil {
@@ -36,8 +30,8 @@ func (s *GameServer) startStreaming(ctx context.Context, conn transport.Streamer
 		}
 	}()
 
-	var videoStreamer *Streamer
-	log.Printf("waiting for capture area has changed")
+	var videoConn *encoderConn
+	log.Printf("waiting for capture rect")
 	for {
 		select {
 		case <-ctx.Done():
@@ -45,18 +39,18 @@ func (s *GameServer) startStreaming(ctx context.Context, conn transport.Streamer
 		case err := <-errCh:
 			// TODO: retry streaming
 			return err
-		case area := <-captureAreaChanged:
-			log.Printf("capture area detected(%s)", &area)
-			if videoStreamer != nil {
-				videoStreamer.Stop()
+		case rect := <-captureRectChanged:
+			log.Printf("capture rect detected(%s)", &rect)
+			if videoConn != nil {
+				videoConn.Stop()
 			}
-			st, err := s.newVideoStreamer(ctx, conn, &area)
+			vc, err := s.newVideoEncoderConn(ctx, conn, &rect)
 			if err != nil {
 				return err
 			}
-			videoStreamer = st
+			videoConn = vc
 			go func() {
-				if err := st.start(ctx, func(ctx context.Context, packet *streamerproto.SamplePacket) error {
+				if err := vc.start(ctx, func(ctx context.Context, packet *encoderproto.SamplePacket) error {
 					return conn.SendVideoSample(ctx, transport.MediaSample{
 						Data:     packet.Data,
 						Duration: packet.Duration,
@@ -69,31 +63,31 @@ func (s *GameServer) startStreaming(ctx context.Context, conn transport.Streamer
 	}
 }
 
-func (s *GameServer) newVideoStreamer(ctx context.Context, conn transport.StreamerConn, area *streamer.ScreenCaptureArea) (*Streamer, error) {
+func (s *GameServer) newVideoEncoderConn(ctx context.Context, conn transport.StreamerConn, rect *ScreenRect) (*encoderConn, error) {
 	log.Printf("start video streaming")
-	videoCapturer := streamer.NewX264Encoder(
-		streamer.NewX11ScreenCapturer(os.Getenv("DISPLAY"), area),
+	video := NewX264Encoder(
+		NewX11ScreenCapturer(os.Getenv("DISPLAY"), rect),
 		defaultX264Params,
 	)
-	gstPipeline, err := videoCapturer.CompileGstPipeline()
+	gstPipeline, err := video.CompileGstPipeline()
 	if err != nil {
 		return nil, err
 	}
-	st := newStreamer(s.streamer, "video", gstPipeline, conn)
+	st := newEncoderConn(s.encoder, "video", gstPipeline)
 	return st, nil
 }
 
 func (s *GameServer) startAudioStreaming(ctx context.Context, conn transport.StreamerConn) error {
 	log.Printf("start audio streaming")
-	audioCapturer := streamer.NewOpusEncoder(
-		streamer.NewPulseAudioCapturer(os.Getenv("PULSE_ADDR")),
+	audio := NewOpusEncoder(
+		NewPulseAudioCapturer(os.Getenv("PULSE_ADDR")),
 	)
-	gstPipeline, err := audioCapturer.CompileGstPipeline()
+	gstPipeline, err := audio.CompileGstPipeline()
 	if err != nil {
 		return err
 	}
-	st := newStreamer(s.streamer, "audio", gstPipeline, conn)
-	return st.start(ctx, func(ctx context.Context, packet *streamerproto.SamplePacket) error {
+	st := newEncoderConn(s.encoder, "audio", gstPipeline)
+	return st.start(ctx, func(ctx context.Context, packet *encoderproto.SamplePacket) error {
 		return conn.SendAudioSample(ctx, transport.MediaSample{
 			Data:     packet.Data,
 			Duration: packet.Duration,
@@ -101,44 +95,42 @@ func (s *GameServer) startAudioStreaming(ctx context.Context, conn transport.Str
 	})
 }
 
-func getStreamerHost() string {
-	if h := os.Getenv("STREAMER_HOST"); h != "" {
+func getEncoderHost() string {
+	if h := os.Getenv("ENCODER_HOST"); h != "" {
 		return h
 	}
 	return "localhost"
 }
 
-type Streamer struct {
-	client        proto.StreamerClient
-	mediaID       string
-	gstPipeline   string
-	streamerConn  transport.StreamerConn
-	mediaDataConn net.Conn
-	mediaDataMu   sync.Mutex
-	stopped       *abool.AtomicBool
+type encoderConn struct {
+	client      proto.EncoderClient
+	pipelineID  string
+	gstPipeline string
+	conn        net.Conn
+	connMu      sync.Mutex
+	stopped     *abool.AtomicBool
 }
 
-func newStreamer(client proto.StreamerClient, mediaID, gstPipeline string, streamerConn transport.StreamerConn) *Streamer {
-	return &Streamer{
-		client:       client,
-		mediaID:      mediaID,
-		gstPipeline:  gstPipeline,
-		streamerConn: streamerConn,
-		stopped:      abool.New(),
+func newEncoderConn(client proto.EncoderClient, pipelineID, gstPipeline string) *encoderConn {
+	return &encoderConn{
+		client:      client,
+		pipelineID:  pipelineID,
+		gstPipeline: gstPipeline,
+		stopped:     abool.New(),
 	}
 }
 
-func (s *Streamer) start(ctx context.Context, onPacket func(ctx context.Context, packet *streamerproto.SamplePacket) error) error {
-	resp, err := s.client.StartStreaming(ctx, &proto.StartStreamingRequest{
-		MediaId:     s.mediaID,
+func (s *encoderConn) start(ctx context.Context, onPacket func(ctx context.Context, packet *encoderproto.SamplePacket) error) error {
+	resp, err := s.client.StartEncoding(ctx, &proto.StartEncodingRequest{
+		PipelineId:  s.pipelineID,
 		GstPipeline: s.gstPipeline,
 		Port:        0, // random port allocation
 	})
 	if err != nil {
 		return err
 	}
-	serverAddr := fmt.Sprintf("%s:%d", getStreamerHost(), resp.ListenPort)
-	if err := s.startStreaming(serverAddr, func(packet *streamerproto.SamplePacket) error {
+	serverAddr := fmt.Sprintf("%s:%d", getEncoderHost(), resp.ListenPort)
+	if err := s.startReceivingMedia(serverAddr, func(packet *encoderproto.SamplePacket) error {
 		return onPacket(ctx, packet)
 	}); err != nil {
 		if s.stopped.IsSet() {
@@ -149,18 +141,18 @@ func (s *Streamer) start(ctx context.Context, onPacket func(ctx context.Context,
 	return nil
 }
 
-func (s *Streamer) startStreaming(serverAddr string, onPacket func(packet *streamerproto.SamplePacket) error) error {
+func (s *encoderConn) startReceivingMedia(serverAddr string, onPacket func(packet *encoderproto.SamplePacket) error) error {
 	conn, err := net.Dial("tcp", serverAddr)
 	if err != nil {
 		return err
 	}
-	s.mediaDataMu.Lock()
-	s.mediaDataConn = conn
-	s.mediaDataMu.Unlock()
+	s.connMu.Lock()
+	s.conn = conn
+	s.connMu.Unlock()
 	r := bufio.NewReader(conn)
 	for {
-		var sp streamerproto.SamplePacket
-		if err := streamerproto.ReadSamplePacket(r, &sp); err != nil {
+		var sp encoderproto.SamplePacket
+		if err := encoderproto.ReadSamplePacket(r, &sp); err != nil {
 			return err
 		}
 		if err := onPacket(&sp); err != nil {
@@ -169,18 +161,11 @@ func (s *Streamer) startStreaming(serverAddr string, onPacket func(packet *strea
 	}
 }
 
-func isClosedByPeer(err error) bool {
-	return errors.Is(err, io.EOF) ||
-		errors.Is(err, io.ErrUnexpectedEOF) ||
-		errors.Is(err, syscall.ECONNRESET) ||
-		(err != nil && strings.Contains(err.Error(), "use of closed network connection"))
-}
-
-func (s *Streamer) Stop() {
+func (s *encoderConn) Stop() {
 	s.stopped.Set()
-	s.mediaDataMu.Lock()
-	defer s.mediaDataMu.Unlock()
-	if s.mediaDataConn != nil {
-		_ = s.mediaDataConn.Close()
+	s.connMu.Lock()
+	defer s.connMu.Unlock()
+	if s.conn != nil {
+		_ = s.conn.Close()
 	}
 }

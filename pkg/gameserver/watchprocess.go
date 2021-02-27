@@ -5,8 +5,6 @@ import (
 	"log"
 	"time"
 
-	"github.com/castaneai/mashimaro/pkg/streamer"
-
 	"github.com/pkg/errors"
 
 	"github.com/BurntSushi/xgbutil"
@@ -17,39 +15,39 @@ var (
 	errNoWindows = errors.New("no windows")
 )
 
-func (s *GameServer) startWatchGame(ctx context.Context, pub *captureAreaPubSub) error {
-	return s.startListenCaptureArea(ctx, pub)
+func (s *GameServer) startWatchGame(ctx context.Context, pub *captureRectPubSub) error {
+	return s.startWatchCaptureRect(ctx, pub)
 }
 
-func (s *GameServer) startListenCaptureArea(ctx context.Context, pub *captureAreaPubSub) error {
+func (s *GameServer) startWatchCaptureRect(ctx context.Context, pub *captureRectPubSub) error {
 	xu, err := xgbutil.NewConn()
 	if err != nil {
 		return err
 	}
-	var captureArea streamer.ScreenCaptureArea
+	var currentRect ScreenRect
 	ticker := time.NewTicker(100 * time.Millisecond)
 	for {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-ticker.C:
-			area, err := getMainWindowArea(xu)
+			rect, err := getMainWindowRect(xu)
 			if err == errNoWindows {
 				continue
 			}
 			if err != nil {
-				log.Printf("failed to get main window area: %+v", err)
+				log.Printf("failed to get main window rect: %+v", err)
 				continue
 			}
-			if area.IsValid() && areaHasChanged(area, &captureArea) {
-				captureArea = *area
-				pub.Publish(*area)
+			if rect.IsValid() && rectHasChanged(rect, &currentRect) {
+				currentRect = *rect
+				pub.Publish(*rect)
 			}
 		}
 	}
 }
 
-func getMainWindowArea(xu *xgbutil.XUtil) (*streamer.ScreenCaptureArea, error) {
+func getMainWindowRect(xu *xgbutil.XUtil) (*ScreenRect, error) {
 	windows, err := x11.EnumWindows(xu, xu.RootWin(), true)
 	if err != nil {
 		return nil, err
@@ -69,7 +67,7 @@ func getMainWindowArea(xu *xgbutil.XUtil) (*streamer.ScreenCaptureArea, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &streamer.ScreenCaptureArea{
+	return &ScreenRect{
 		StartX: x,
 		StartY: y,
 		EndX:   x + width,
@@ -77,7 +75,7 @@ func getMainWindowArea(xu *xgbutil.XUtil) (*streamer.ScreenCaptureArea, error) {
 	}, nil
 }
 
-func areaHasChanged(a1, a2 *streamer.ScreenCaptureArea) bool {
+func rectHasChanged(a1, a2 *ScreenRect) bool {
 	return a1.StartX != a2.StartX ||
 		a1.StartY != a2.StartY ||
 		a1.EndX != a2.EndX ||

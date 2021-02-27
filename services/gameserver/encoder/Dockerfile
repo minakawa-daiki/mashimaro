@@ -16,7 +16,7 @@ COPY go.mod .
 COPY go.sum .
 RUN go mod download
 COPY . .
-RUN CGO_ENABLED=1 go build -o /bin/streamer services/gameserver/streamer/main.go
+RUN CGO_ENABLED=1 go build -o /bin/encoder services/gameserver/encoder/main.go
 
 FROM ubuntu:20.10
 
@@ -28,6 +28,6 @@ RUN cp /etc/apt/sources.list /etc/apt/sources.list.orig && \
 RUN apt update -y \
 	&& apt install -y libgstreamer1.0-0 gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-libav gstreamer1.0-tools gstreamer1.0-x gstreamer1.0-alsa gstreamer1.0-gl gstreamer1.0-pulseaudio libxrandr2 libxtst6 libxfixes3
 WORKDIR /app
-COPY --from=builder /bin/streamer /app/streamer
-COPY ./services/gameserver/streamer/entrypoint.sh /entrypoint.sh
-ENTRYPOINT ["/entrypoint.sh", "/app/streamer"]
+COPY --from=builder /bin/encoder /app/encoder
+COPY ./services/gameserver/encoder/entrypoint.sh /entrypoint.sh
+ENTRYPOINT ["/entrypoint.sh", "/app/encoder"]

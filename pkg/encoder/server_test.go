@@ -1,4 +1,4 @@
-package streamerserver
+package encoder
 
 import (
 	"context"
@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/castaneai/mashimaro/pkg/encoder/encoderproto"
 	"github.com/castaneai/mashimaro/pkg/proto"
-	"github.com/castaneai/mashimaro/pkg/streamer/streamerproto"
 	"google.golang.org/grpc"
 
 	"github.com/stretchr/testify/assert"
@@ -17,10 +17,10 @@ import (
 	"github.com/castaneai/mashimaro/pkg/testutils"
 )
 
-func TestStreamingServer(t *testing.T) {
+func TestEncoderServer(t *testing.T) {
 	lis := testutils.ListenTCPWithRandomPort(t)
 	s := grpc.NewServer()
-	proto.RegisterStreamerServer(s, NewStreamerServer())
+	proto.RegisterEncoderServer(s, NewEncoderServer())
 	go func() {
 		if err := s.Serve(lis); err != nil {
 			log.Printf("failed to serve gRPC server: %+v", err)
@@ -30,18 +30,18 @@ func TestStreamingServer(t *testing.T) {
 	for i := 0; i < 3; i++ {
 		cc, err := grpc.Dial(lis.Addr().String(), grpc.WithInsecure())
 		assert.NoError(t, err)
-		c := proto.NewStreamerClient(cc)
+		c := proto.NewEncoderClient(cc)
 		ctx := context.Background()
-		resp, err := c.StartStreaming(ctx, &proto.StartStreamingRequest{
-			MediaId:     "video",
+		resp, err := c.StartEncoding(ctx, &proto.StartEncodingRequest{
+			PipelineId:  "video",
 			GstPipeline: "videotestsrc",
 			Port:        0,
 		})
 		assert.NoError(t, err)
 		conn, err := net.Dial("tcp", fmt.Sprintf("127.0.0.1:%d", resp.ListenPort))
 		assert.NoError(t, err)
-		var sp streamerproto.SamplePacket
-		assert.NoError(t, streamerproto.ReadSamplePacket(conn, &sp))
+		var sp encoderproto.SamplePacket
+		assert.NoError(t, encoderproto.ReadSamplePacket(conn, &sp))
 		assert.True(t, sp.Duration > 0)
 		assert.True(t, len(sp.Data) > 0)
 		time.Sleep(500 * time.Millisecond)

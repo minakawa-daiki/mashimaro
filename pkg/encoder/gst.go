@@ -1,4 +1,4 @@
-package streamerserver
+package encoder
 
 import (
 	"fmt"
@@ -10,13 +10,13 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/castaneai/mashimaro/pkg/streamer/streamerproto"
+	"github.com/castaneai/mashimaro/pkg/encoder/encoderproto"
 
 	"github.com/notedit/gst"
 	"github.com/pkg/errors"
 )
 
-func StartGstServer(pipelineStr string, port int) (*GstServer, error) {
+func startGstServer(pipelineStr string, port int) (*GstServer, error) {
 	lis, err := listenTCP(port)
 	if err != nil {
 		return nil, err
@@ -112,11 +112,11 @@ func (g *GstServer) serveSample(w io.Writer, src *gst.Element) error {
 			}
 			return errors.Wrap(err, "failed to pull sample")
 		}
-		packet := streamerproto.SamplePacket{
+		packet := encoderproto.SamplePacket{
 			Data:     sample.Data,
 			Duration: time.Duration(sample.Duration),
 		}
-		if err := streamerproto.WriteSamplePacket(w, &packet); err != nil {
+		if err := encoderproto.WriteSamplePacket(w, &packet); err != nil {
 			if errors.Is(err, syscall.EPIPE) || errors.Is(err, syscall.ECONNRESET) {
 				log.Printf("media data client disconnected")
 				return nil

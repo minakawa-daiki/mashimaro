@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+option go_package = "proto";
+
+service Encoder {
+  rpc StartEncoding(StartEncodingRequest) returns (StartEncodingResponse) {}
+}
+
+message StartEncodingRequest {
+  // Pipelines with the same ID will not run at the same time.
+  // If you make a request to a running pipeline ID, the running pipeline will stop and a new pipeline will start.
+  string pipeline_id = 1;
+
+  string gst_pipeline = 2;
+
+  // Use 0 to allocate random port
+  int32 port = 3;
+}
+
+message StartEncodingResponse {
+  uint32 listen_port = 1;
+}
